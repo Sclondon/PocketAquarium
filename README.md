@@ -32,9 +32,9 @@ There are four ways to play it, and they all run at once:
   and three days of that kills it. Fry take a week to grow up. An unwell fish loses its colour.
 - **A toy.** Turn the tank, tap the glass, turn the lamp off, dress the gravel.
 - **A collection.** Seven kinds of fish are sold. Eleven more can only be bred, and breeding
-  is rare: a tank with two well-fed, healthy adults, good water and room to spare lays an egg
-  about once a fortnight, the egg takes three days to hatch, and both parents then wait two
-  weeks. Two of the same kind have another; the right two different kinds have something new
+  is uncommon: a tank with two well-fed, healthy adults, good water and room to spare (no more
+  than seven tenths full, counting fry as grown) lays an egg about every three days, the egg
+  takes a day to hatch, and both parents then wait four days. Two of the same kind have another; the right two different kinds have something new
   (`CROSSES` in `species.gd`), and very rarely any egg hatches a Moonfish. The fish-dex gives a
   hint for each kind not yet seen.
 - **An ecosystem.** The four gauges are oxygen, how clean the water is, how clear the glass is

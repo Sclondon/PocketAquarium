@@ -39,11 +39,14 @@ const DAY := 86400.0
 ## Seconds a flake lies on the gravel before it rots, and the waste it turns into.
 const FOOD_KEEPS := 600.0
 const FOOD_ROT := 0.02
-## Breeding is rare: a tank with a pair ready to breed lays an egg about this often. An egg
+## Breeding is uncommon: a tank with a pair ready to breed lays an egg about this often. An egg
 ## takes this long to hatch, and both parents wait this long before breeding again.
-const BREED_EVERY := 14.0 * DAY
-const HATCH_TIME := 3.0 * DAY
-const BREED_WAIT := 14.0 * DAY
+const BREED_EVERY := 3.0 * DAY
+const HATCH_TIME := DAY
+const BREED_WAIT := 4.0 * DAY
+## Fish only breed while the tank is no fuller than this share of what it holds, so they never
+## crowd themselves out of clean water.
+const BREED_ROOM := 0.7
 ## Seconds between water changes.
 const WATER_WAIT := 6.0 * 3600.0
 ## The longest time away that is caught up on.
@@ -695,7 +698,7 @@ func _try_breeding(dt: float) -> void:
 	ready.erase(a)
 	var b: Fish = ready[_rng.randi() % ready.size()]
 	var child := Species.child_of(a.species, b.species, _rng)
-	if grown + float(Species.LIST[child].load) > capacity() + 0.001:
+	if grown + float(Species.LIST[child].load) > capacity() * BREED_ROOM:
 		return
 	a.breed_wait = BREED_WAIT
 	b.breed_wait = BREED_WAIT
