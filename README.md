@@ -1,0 +1,97 @@
+# Pocket Aquarium
+
+A small low-poly fish tank to keep, for the Scareathon arcade. Feed the fish, keep the water
+alive, breed new kinds and fill the fish-dex. The shop takes the arcade's tickets.
+
+Godot **4.7**, GL Compatibility. Open `project.godot` and press F5. It lays itself out for a
+wide screen or a tall one.
+
+## Playing
+
+| | Mouse | Touch |
+|---|---|---|
+| Feed (FEED tool) | Click in the water | Tap in the water |
+| Scrub algae (SCRUB tool) | Drag across the glass | Drag across the glass |
+| Tap the glass (SCRUB tool) | Click the glass: nearby fish bolt | Tap the glass |
+| Look at a fish | Click it | Tap it |
+| Net out a dead fish | Click it | Tap it |
+| Turn the tank | Drag (anywhere, with FEED) | Drag |
+| Zoom | Wheel | Pinch |
+
+Along the bottom: FEED and SCRUB pick the tool, LAMP turns the light on and off, WATER changes
+the water (once every 45 seconds), SHOP and DEX open their sheets.
+
+There are four ways to play it, and they all run at once:
+
+- **A pet.** Fish get hungry (about ten minutes from full to starving), grow up from fry when
+  they are fed, and lose their colour when they are unwell. A fish that is starving, short of
+  oxygen or in foul water loses health and in the end dies.
+- **A toy.** Turn the tank, tap the glass, turn the lamp off, dress the gravel.
+- **A collection.** Seven kinds of fish are sold. Eleven more can only be bred: two well-fed,
+  healthy adults in good water, with room to spare, lay an egg now and then. Two of the same
+  kind have another; the right two different kinds have something new (`CROSSES` in
+  `species.gd`), and very rarely any egg hatches a Moonfish. The fish-dex gives a hint for
+  each kind not yet seen.
+- **An ecosystem.** The four gauges are oxygen, how clean the water is, how clear the glass is
+  and how much room is left. Fish use oxygen and make waste; food left on the gravel rots into
+  more. Plants make oxygen in the light and take waste up, the air pump adds oxygen, the
+  filter removes waste, snails graze the algae and shrimps eat fallen food. Algae only grows
+  with the lamp on, but so do the plants.
+
+The tank only runs while the game is open: nothing happens to it while you are away.
+
+## Tickets
+
+Everything in the shop is priced in the arcade's tickets (`scripts/autoload/tickets.gd`).
+Nothing in the game earns them.
+
+The page the cabinet is in owns the balance, and the game talks to it with window messages:
+
+| Direction | Message | When |
+|---|---|---|
+| game → page | `{ type: 'AQUARIUM_READY' }` | once, when the game has loaded |
+| page → game | `{ type: 'TICKETS', balance: 1234 }` | in answer, and whenever the balance changes |
+| game → page | `{ type: 'SPEND_TICKETS', amount: 40, item: 'fish:goldfish' }` | on each purchase |
+| game → page | `{ type: 'PLAYER_DIED', score: 7 }` | each time a new kind is kept (the score is the number of kinds) |
+
+The game takes the price off its own copy of the balance at once, so the page should answer a
+spend with a fresh `TICKETS` message, which always wins. Only messages from the parent window
+are listened to. `item` is `fish:<id>`, or one of `plant`, `snail`, `shrimp`, `pump`,
+`filter`, `bigger`, `column`, `castle`, `chest`, `skull`.
+
+**The arcade page does not send these yet.** Until a `TICKETS` message arrives the game runs
+on a practice wallet of 300 tickets kept in its own save, and the plate in the corner reads
+PRACTICE TICKETS. Add `?tickets=500` to the address (or run with `-- --tickets=500`) to set it.
+
+## Project layout
+
+| Path | What |
+|---|---|
+| `scripts/main.gd` | the frame: low-res render target, camera, what a tap or drag does, saving |
+| `scripts/tank/tank.gd` | the tank: its meshes, the water, food, eggs, breeding, snails and shrimps |
+| `scripts/tank/fish.gd` | one fish: swimming, hunger, health, growing |
+| `scripts/tank/species.gd` | every kind of fish, what each looks like and which pairs make which |
+| `scripts/tank/fish_mesh.gd` | builds a fish's model from its `look` |
+| `scripts/tank/props.gd` | plants, rocks, ornaments, gear and the small things |
+| `scripts/ui/` | the HUD, the shop and fish-dex sheets, the flat fish pictures, the UI kit |
+| `scripts/autoload/` | the save (`user://aquarium.json`), tickets, and sound effects (synthesized at start) |
+| `shaders/` | PS1 vertex snap, fish wag, the glass (water colour and algae), dither post-process |
+
+Adding a fish is one entry in `Species.LIST` (and its id in `ORDER`); give it a `price` to
+sell it or a line in `CROSSES` to breed it. The numbers that set how hard the tank is to keep
+are the constants at the top of `fish.gd` and `tank.gd`, and the three lines of arithmetic in
+`Tank.step`.
+
+## Tests and builds
+
+```
+godot --headless --path . -- --no-save --smoke          # an hour of tank time, then 15 minutes of neglect; prints how it went
+godot --path . -- --no-save --shots=C:/some/folder      # screenshots of the tank and each sheet, wide and tall
+godot --headless --path . --export-release "Web" build/index.html
+```
+
+`--no-save` starts from a new tank and writes nothing, so tests leave the real one alone.
+
+To put it in the arcade: push the repository with `build/` to GitHub, turn on GitHub Pages,
+and add a cabinet to `src/pages/Arcade/games.tsx` in scareathon-v3 that loads
+`https://sclondon.github.io/PocketAquarium/build/index.html?v=<commit>`.
