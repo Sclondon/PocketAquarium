@@ -2,6 +2,9 @@ extends Node3D
 ## The tank and everything in it: the glass and gravel, the fish, the plants and other small
 ## life, the food, the eggs, and the water itself.
 ##
+## It runs in real time, and goes on while the game is shut: the save holds the time it was
+## written, and the next visit catches up on the time away (see `elapse`).
+##
 ## The water is three numbers from 0 to 1. Oxygen comes in at the surface (faster with the air
 ## pump) and from plants in the light, and the fish breathe it. Waste comes from the fish and
 ## from food left to rot; plants and the filter take it up, and changing the water halves it.
@@ -32,14 +35,19 @@ const MAX_PLANTS := 8
 const MAX_SNAILS := 3
 const MAX_SHRIMPS := 3
 const MAX_FOOD := 40
+const DAY := 86400.0
 ## Seconds a flake lies on the gravel before it rots, and the waste it turns into.
-const FOOD_KEEPS := 25.0
-const FOOD_ROT := 0.03
-## Seconds an egg takes to hatch, and both parents wait before breeding again.
-const HATCH_TIME := 18.0
-const BREED_WAIT := 120.0
+const FOOD_KEEPS := 600.0
+const FOOD_ROT := 0.02
+## Breeding is rare: a tank with a pair ready to breed lays an egg about this often. An egg
+## takes this long to hatch, and both parents wait this long before breeding again.
+const BREED_EVERY := 14.0 * DAY
+const HATCH_TIME := 3.0 * DAY
+const BREED_WAIT := 14.0 * DAY
 ## Seconds between water changes.
-const WATER_WAIT := 45.0
+const WATER_WAIT := 6.0 * 3600.0
+## The longest time away that is caught up on.
+const MAX_AWAY := 30.0 * DAY
 
 const CLEAN_WATER := Color(0.35, 0.8, 0.95)
 const FOUL_WATER := Color(0.42, 0.46, 0.16)
@@ -65,6 +73,10 @@ var waste := 0.05
 var algae := 0.0
 var lamp_on := true
 var water_wait := 0.0
+## How long the tank has been kept (seconds), and how fast its clock runs (1 is real time;
+## only tests and `--speed=` change it).
+var age := 0.0
+var time_scale := 1.0
 
 var _shell: Node3D
 var _life: Node3D
@@ -81,7 +93,10 @@ var _critters: Array[Dictionary] = []
 var _flake: ArrayMesh
 var _egg: ArrayMesh
 var _rng := RandomNumberGenerator.new()
-var _breed_in := 4.0
+## While catching up on time away nothing is announced; what happened is counted instead.
+var _quiet := false
+var _hatched := 0
+var _died := 0
 var _clock := 0.0
 var _lamp := 1.0
 
@@ -180,9 +195,13 @@ func to_data() -> Dictionary:
 	for f in fish:
 		if not f.dead:
 			kept.append(f.to_data())
+	var laid: Array = []
+	for egg in _eggs:
+		laid.append({"species": egg.species, "age": egg.age, "x": egg.node.position.x, "z": egg.node.position.z})
 	return {"size": size_id, "plants": plants, "snails": snails, "shrimps": shrimps, "gear": gear.keys(),
 			"decor": decor.keys(), "dex": dex.keys(), "o2": o2, "waste": waste, "algae": algae, "lamp": lamp_on,
-			"fish": kept}
+			"fish": kept, "eggs": laid, "age": age, "water_wait": water_wait,
+			"at": Time.get_unix_time_from_system()}
 
 
 ## Sets the tank up from a save. An empty one is a new tank: two guppies and a plant.
@@ -212,6 +231,8 @@ func load_state(data: Dictionary) -> void:
 	waste = clampf(data.get("waste", 0.05), 0.0, 1.0)
 	algae = clampf(data.get("algae", 0.0), 0.0, 1.0)
 	lamp_on = data.get("lamp", true)
+	age = maxf(data.get("age", 0.0), 0.0)
+	water_wait = clampf(data.get("water_wait", 0.0), 0.0, WATER_WAIT)
 	_lamp = 1.0 if lamp_on else 0.0
 	rebuild()
 	var saved: Array = data.get("fish", [])
@@ -224,7 +245,47 @@ func load_state(data: Dictionary) -> void:
 		_add_critter_node("snail")
 	for i in shrimps:
 		_add_critter_node("shrimp")
+	for entry in data.get("eggs", []):
+		if entry is Dictionary and Species.LIST.has(str(entry.get("species", ""))):
+			_lay(str(entry.species), float(entry.get("x", 0.0)), float(entry.get("z", 0.0)), float(entry.get("age", 0.0)))
+	if data.has("at"):
+		var away := clampf(Time.get_unix_time_from_system() - float(data["at"]), 0.0, MAX_AWAY)
+		elapse(away)
+		if away > 3600.0:
+			var news := "You were away %s." % _span(away)
+			if _died > 0:
+				news += " %d fish died." % _died
+			if _hatched > 0:
+				news += " %d hatched." % _hatched
+			said.emit(news)
 	changed.emit()
+
+
+## Catches the tank up on `seconds` in which nobody was looking: the fish get hungrier, the
+## water changes, eggs hatch. Nothing is fed and nothing is announced.
+func elapse(seconds: float) -> void:
+	_quiet = true
+	_hatched = 0
+	_died = 0
+	var left := seconds
+	while left > 0.0:
+		var dt := minf(left, 300.0)
+		left -= dt
+		for f in fish:
+			if not f.dead:
+				f.live(dt)
+		_step_water(dt)
+		_step_eggs(dt)
+		_try_breeding(dt)
+	_quiet = false
+
+
+## A length of time in words, to the nearest hour: "3 hours", "2 days".
+func _span(seconds: float) -> String:
+	if seconds < 1.5 * DAY:
+		var hours := maxi(roundi(seconds / 3600.0), 1)
+		return "%d hour%s" % [hours, "" if hours == 1 else "s"]
+	return "%d days" % roundi(seconds / DAY)
 
 
 # ------------------------------------------------------------------ building
@@ -473,9 +534,24 @@ func eat(food: Dictionary) -> void:
 
 
 func fish_died(f: Fish) -> void:
-	said.emit("%s the %s has died. Tap to net it out." % [f.fish_name, f.info().name])
-	Sfx.play("sad")
-	changed.emit()
+	_died += 1
+	_say("%s the %s has died. Tap to net it out." % [f.fish_name, f.info().name], "sad")
+	if not _quiet:
+		changed.emit()
+
+
+## Whether any fish would eat if it were fed now.
+func anyone_hungry() -> bool:
+	for f in fish:
+		if not f.dead and f.hunger > Fish.PECKISH:
+			return true
+	return false
+
+
+func _say(text: String, sound: String, pitch := 1.0) -> void:
+	if not _quiet:
+		said.emit(text)
+		Sfx.play(sound, pitch)
 
 
 # ------------------------------------------------------------------ the simulation
@@ -483,30 +559,38 @@ func fish_died(f: Fish) -> void:
 ## Moves the whole tank on by `delta` seconds.
 func step(delta: float) -> void:
 	_clock += delta
-	water_wait = maxf(water_wait - delta, 0.0)
 	_lamp = move_toward(_lamp, 1.0 if lamp_on else 0.0, delta * 2.0)
-	var light := lerpf(0.15, 1.0, _lamp)
-
-	var bodies := 0
+	var lived := delta * time_scale
 	for f in fish:
-		f.tick(delta)
-		if f.dead:
-			bodies += 1
-	var crowded := crowd()
-	var exchange := 0.05 * (2.5 if gear.has("pump") else 1.0) + plants * 0.012 * light
-	o2 = clampf(o2 + delta * (exchange * (1.0 - o2) - crowded * 0.0045 - waste * 0.004), 0.0, 1.0)
-	var cleaning := 0.002 + (0.012 if gear.has("filter") else 0.0) + plants * 0.0015 * light
-	waste = clampf(waste + delta * (crowded * 0.0009 + bodies * 0.002 - waste * cleaning), 0.0, 1.0)
-	algae = clampf(algae + delta * ((0.0015 + 0.004 * waste) * light - snails * 0.005), 0.0, 1.0)
-
+		f.tick(delta, lived)
+	_step_water(lived)
 	_step_food(delta)
 	_step_critters(delta)
-	_step_eggs(delta)
-	_breed_in -= delta
-	if _breed_in <= 0.0:
-		_breed_in = 2.0
-		_try_breeding()
-	_step_looks(light)
+	_step_eggs(lived)
+	_try_breeding(lived)
+	_step_looks(lerpf(0.15, 1.0, _lamp))
+
+
+## The water over `dt` seconds, which may be many. Oxygen settles within minutes to wherever
+## the fish and the surface leave it; waste and algae build up over days.
+func _step_water(dt: float) -> void:
+	age += dt
+	water_wait = maxf(water_wait - dt, 0.0)
+	var light := 1.0 if lamp_on else 0.15
+	var bodies := 0
+	for f in fish:
+		bodies += int(f.dead)
+	var crowded := crowd()
+	# (each of these heads for a resting level, so a long step is as good as many short ones)
+	var exchange := 0.05 * (2.5 if gear.has("pump") else 1.0) + plants * 0.012 * light
+	var o2_rest := 1.0 - (crowded * 0.0045 + waste * 0.004) / exchange
+	o2 = clampf(lerpf(o2_rest, o2, exp(-exchange * dt)), 0.0, 1.0)
+	# a day's waste: 0.03 for each fish's worth of room, more for a body left in; a day's
+	# cleaning takes this share of what is there
+	var making := (crowded * 0.03 + bodies * 0.1) / DAY
+	var cleaning := (0.05 + (0.4 if gear.has("filter") else 0.0) + plants * 0.05 * light) / DAY
+	waste = clampf(lerpf(making / cleaning, waste, exp(-cleaning * dt)), 0.0, 1.0)
+	algae = clampf(algae + dt / DAY * ((0.1 + 0.2 * waste) * light - snails * 0.06), 0.0, 1.0)
 
 
 func _step_food(delta: float) -> void:
@@ -581,36 +665,50 @@ func _step_eggs(delta: float) -> void:
 		_eggs.erase(egg)
 		var at: Vector3 = egg.node.position
 		egg.node.queue_free()
-		var f := add_fish(egg.species, 0.0)
+		var f := _spawn({"species": egg.species, "growth": 0.0})
 		f.position = at + Vector3(0.0, 0.25, 0.0)
-		said.emit("An egg has hatched: %s the %s." % [f.fish_name, f.info().name])
-		Sfx.play("egg", 1.3)
+		_hatched += 1
+		_say("An egg has hatched: %s the %s." % [f.fish_name, f.info().name], "egg", 1.3)
+		if not _quiet:
+			changed.emit()
 
 
-## Two well-fed, healthy adults in good water, with room to spare, may lay an egg.
-func _try_breeding() -> void:
+## Two well-fed, healthy adults in good water, with room to spare, may lay an egg: now and
+## then, about once every BREED_EVERY while all of that holds.
+func _try_breeding(dt: float) -> void:
 	if o2 < 0.5 or waste > 0.5 or _eggs.size() >= 2:
 		return
-	if crowd() + _eggs.size() * 0.4 + 0.4 > capacity():
-		return
+	# (room is counted as if every fry and egg were already full-grown)
+	var grown := 0.0
+	for f in fish:
+		if not f.dead:
+			grown += float(f.info().load)
+	for egg in _eggs:
+		grown += float(Species.LIST[egg.species].load)
 	var ready: Array[Fish] = []
 	for f in fish:
 		if not f.dead and f.is_adult() and f.hunger < 0.45 and f.health > 0.8 and f.breed_wait <= 0.0:
 			ready.append(f)
-	if ready.size() < 2 or _rng.randf() > 0.15:
+	if ready.size() < 2 or _rng.randf() > 1.0 - exp(-dt / BREED_EVERY):
 		return
 	var a: Fish = ready[_rng.randi() % ready.size()]
 	ready.erase(a)
 	var b: Fish = ready[_rng.randi() % ready.size()]
+	var child := Species.child_of(a.species, b.species, _rng)
+	if grown + float(Species.LIST[child].load) > capacity() + 0.001:
+		return
 	a.breed_wait = BREED_WAIT
 	b.breed_wait = BREED_WAIT
-	var node := _instance(_egg, _mat)
 	var mid := (a.position + b.position) * 0.5
-	node.position = _on_floor(mid.x, mid.z)
+	_lay(child, mid.x, mid.z, 0.0)
+	_say("%s and %s have laid an egg." % [a.fish_name, b.fish_name], "egg")
+
+
+func _lay(species: String, x: float, z: float, egg_age: float) -> void:
+	var node := _instance(_egg, _mat)
+	node.position = _on_floor(clampf(x, -width * 0.45, width * 0.45), clampf(z, -depth * 0.45, depth * 0.45))
 	_life.add_child(node)
-	_eggs.append({"node": node, "age": 0.0, "species": Species.child_of(a.species, b.species, _rng)})
-	said.emit("%s and %s have laid an egg." % [a.fish_name, b.fish_name])
-	Sfx.play("egg")
+	_eggs.append({"node": node, "age": egg_age, "species": species})
 
 
 ## The lamp, the colour of the water, the algae and the bubbles.

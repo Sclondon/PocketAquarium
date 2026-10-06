@@ -1,7 +1,7 @@
 extends Node
 ## The automated tour, started by main.gd when the game is run with one of:
 ##   godot --path . -- --no-save --shots=C:/some/folder    screenshots of the tank and each sheet
-##   godot --headless --path . -- --no-save --smoke        an hour of tank time, then a report
+##   godot --headless --path . -- --no-save --smoke        months of tank time, then a report
 ## Both quit when they are done. Use --no-save so they leave the real tank alone.
 
 const Species := preload("res://scripts/tank/species.gd")
@@ -17,10 +17,14 @@ func _ready() -> void:
 		_shots.call_deferred()
 
 
-## Fills a tank with everything, then runs it for an hour (fed and cleaned every so often) and
-## prints what became of it.
+## Keeps three tanks for weeks of tank time and prints what became of each: a beginner's and a
+## full one, both fed once a day with the water changed once a week, and one left alone.
 func _smoke() -> void:
 	var tank = main.tank
+	print("smoke: a new tank, fed daily")
+	_keep(tank, 60)
+
+	tank.load_state({})
 	for i in 2:
 		tank.grow()
 	for id in ["pump", "filter"]:
@@ -33,52 +37,65 @@ func _smoke() -> void:
 	tank.add_critter("shrimp")
 	for id: String in ["tetra", "goldfish", "angelfish", "betta", "clownfish", "puffer"]:
 		tank.add_fish(id)
-	var bought: int = tank.fish.size()
+	print("smoke: a full tank with everything fitted, fed daily")
+	_keep(tank, 120)
+
+	# a save from three days ago: the tank catches up on the time away
+	var old: Dictionary = JSON.parse_string(JSON.stringify(tank.to_data()))
+	old["at"] = Time.get_unix_time_from_system() - 3.0 * 86400.0
+	var hungry_before: float = tank.fish[0].hunger
+	tank.said.connect(func(text: String) -> void: print("smoke: said: ", text))
+	tank.load_state(old)
+	print("smoke: reloaded %d fish and %d eggs after 3 days away; first fish's hunger %.2f -> %.2f" % [tank.fish.size(),
+			tank._eggs.size(), hungry_before, tank.fish[0].hunger])
+
+	# a neglected tank: nothing fed, nothing cleaned
+	tank.load_state({})
+	var day := 0
+	while day < 30 and _living(tank) > 0:
+		tank.elapse(86400.0)
+		day += 1
+	print("smoke: left alone, the last of 2 guppies died on day %d; waste %.2f, algae %.2f" % [day, tank.waste, tank.algae])
+	get_tree().quit()
+
+
+## A keeper's routine for so many days: every day a pinch of food for each three fish, then two
+## minutes of watching while they eat; every week a water change, a scrub, and the dead netted.
+func _keep(tank, days: int) -> void:
+	var start: int = tank.fish.size()
 	var died := 0
-	var given := 0
-	for i in 36000:
-		if i % 600 == 0:
-			for k in 4:
-				tank.drop_food(randf_range(-1.0, 1.0), randf_range(-0.4, 0.4))
-		if i % 6000 == 0:
+	var worst_waste := 0.0
+	var worst_o2 := 1.0
+	for day in days:
+		for k in ceili(_living(tank) / 3.0):
+			tank.drop_food(randf_range(-0.8, 0.8), randf_range(-0.4, 0.4))
+		for i in 1200:
+			tank.step(0.1)
+		tank.elapse(86400.0 - 120.0)
+		worst_waste = maxf(worst_waste, tank.waste)
+		worst_o2 = minf(worst_o2, tank.o2)
+		if day % 7 == 6:
 			tank.change_water()
+			tank.scrub(1.0)
 			for f in tank.fish.duplicate():
 				if f.dead:
 					died += 1
 					tank.remove_fish(f)
-			# room for eggs: give away any fish over a dozen
-			while tank.fish.size() > 12:
-				tank.remove_fish(tank.fish[0])
-				given += 1
-		tank.step(0.1)
-		if i % 3000 == 2999:
-			var hungry := 0.0
-			var living := 0
-			for f in tank.fish:
-				if not f.dead:
-					living += 1
-					hungry += f.hunger
-			print("smoke: minute %d: %d living, hunger %.2f, o2 %.2f, waste %.2f, algae %.2f, %d flakes lying" % [(i + 1) / 600,
-					living, hungry / maxf(living, 1.0), tank.o2, tank.waste, tank.algae, tank._foods.size()])
-	var alive := 0
+	var hunger := 0.0
 	for f in tank.fish:
-		alive += int(not f.dead)
-	print("smoke: %d alive; %d hatched, %d died, %d given away; dex %d/%d %s" % [alive,
-			tank.fish.size() + died + given - bought, died + tank.fish.size() - alive, given,
-			tank.dex.size(), Species.ORDER.size(), str(tank.dex.keys())])
-	print("smoke: o2 %.2f waste %.2f algae %.2f crowd %.1f/%.0f" % [tank.o2, tank.waste, tank.algae, tank.crowd(), tank.capacity()])
-	var again: Dictionary = JSON.parse_string(JSON.stringify(tank.to_data()))
-	tank.load_state(again)
-	print("smoke: reloaded %d fish, ok" % tank.fish.size())
-	# a neglected tank: nothing fed, nothing cleaned
-	tank.load_state({})
-	for i in 9000:
-		tank.step(0.1)
-	var left := 0
+		hunger += f.hunger
+	print("smoke:   after %d days: %d living; %d hatched, %d died, %d eggs waiting; hunger %.2f" % [days, _living(tank),
+			tank.fish.size() + died - start, died + tank.fish.size() - _living(tank), tank._eggs.size(),
+			hunger / maxf(tank.fish.size(), 1.0)])
+	print("smoke:   worst waste %.2f, lowest oxygen %.2f, algae %.2f, crowd %.1f/%.0f, dex %d/%d %s" % [worst_waste, worst_o2,
+			tank.algae, tank.crowd(), tank.capacity(), tank.dex.size(), Species.ORDER.size(), str(tank.dex.keys())])
+
+
+func _living(tank) -> int:
+	var n := 0
 	for f in tank.fish:
-		left += int(not f.dead)
-	print("smoke: 15 minutes of neglect leaves %d of 2 guppies, waste %.2f algae %.2f" % [left, tank.waste, tank.algae])
-	get_tree().quit()
+		n += int(not f.dead)
+	return n
 
 
 func _shots() -> void:
@@ -97,6 +114,8 @@ func _shots() -> void:
 	tank.add_critter("shrimp")
 	for id: String in ["tetra", "goldfish", "angelfish", "betta", "clownfish", "puffer", "aurora_koi", "moonfish"]:
 		tank.add_fish(id)
+	for f in tank.fish:
+		f.growth = 1.0
 	tank.drop_food(0.2, 0.0)
 	for i in 100:
 		tank.step(0.1)

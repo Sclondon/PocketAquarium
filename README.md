@@ -19,26 +19,32 @@ wide screen or a tall one.
 | Zoom | Wheel | Pinch |
 
 Along the bottom: FEED and SCRUB pick the tool, LAMP turns the light on and off, WATER changes
-the water (once every 45 seconds), SHOP and DEX open their sheets.
+the water (once every six hours), SHOP and DEX open their sheets.
+
+The tank keeps real time, like a real one. It goes on while the game is shut: the save holds
+the time it was written, and the next visit catches up on the time away (up to 30 days) and
+says what happened. A visit is a minute or two: feed them, look at the water, see who is new.
 
 There are four ways to play it, and they all run at once:
 
-- **A pet.** Fish get hungry (about ten minutes from full to starving), grow up from fry when
-  they are fed, and lose their colour when they are unwell. A fish that is starving, short of
-  oxygen or in foul water loses health and in the end dies.
+- **A pet.** Fish want feeding about once a day. A fish is full for half a day after a meal
+  and will not eat; a day after, it is hungry; after nearly three days unfed it is starving,
+  and three days of that kills it. Fry take a week to grow up. An unwell fish loses its colour.
 - **A toy.** Turn the tank, tap the glass, turn the lamp off, dress the gravel.
-- **A collection.** Seven kinds of fish are sold. Eleven more can only be bred: two well-fed,
-  healthy adults in good water, with room to spare, lay an egg now and then. Two of the same
-  kind have another; the right two different kinds have something new (`CROSSES` in
-  `species.gd`), and very rarely any egg hatches a Moonfish. The fish-dex gives a hint for
-  each kind not yet seen.
+- **A collection.** Seven kinds of fish are sold. Eleven more can only be bred, and breeding
+  is rare: a tank with two well-fed, healthy adults, good water and room to spare lays an egg
+  about once a fortnight, the egg takes three days to hatch, and both parents then wait two
+  weeks. Two of the same kind have another; the right two different kinds have something new
+  (`CROSSES` in `species.gd`), and very rarely any egg hatches a Moonfish. The fish-dex gives a
+  hint for each kind not yet seen.
 - **An ecosystem.** The four gauges are oxygen, how clean the water is, how clear the glass is
-  and how much room is left. Fish use oxygen and make waste; food left on the gravel rots into
-  more. Plants make oxygen in the light and take waste up, the air pump adds oxygen, the
-  filter removes waste, snails graze the algae and shrimps eat fallen food. Algae only grows
-  with the lamp on, but so do the plants.
-
-The tank only runs while the game is open: nothing happens to it while you are away.
+  and how much room is left. Fish use oxygen and make waste, a little every day; food nobody
+  eats rots into more after ten minutes, so do not overfeed. Plants make oxygen in the light
+  and take waste up, the air pump adds oxygen, the filter removes waste, snails graze the
+  algae and shrimps eat fallen food. Algae only grows with the lamp on, but so do the plants.
+  Two guppies and a plant look after themselves; a fully stocked tank without a filter needs
+  its water changed every few days. Water past the red line harms the fish slowly at first
+  and quickly at its worst.
 
 ## Tickets
 
@@ -79,13 +85,14 @@ PRACTICE TICKETS. Add `?tickets=500` to the address (or run with `-- --tickets=5
 
 Adding a fish is one entry in `Species.LIST` (and its id in `ORDER`); give it a `price` to
 sell it or a line in `CROSSES` to breed it. The numbers that set how hard the tank is to keep
-are the constants at the top of `fish.gd` and `tank.gd`, and the three lines of arithmetic in
-`Tank.step`.
+are the constants at the top of `fish.gd` and `tank.gd` (all in seconds of real time), and the
+arithmetic in `Tank._step_water`.
 
 ## Tests and builds
 
 ```
-godot --headless --path . -- --no-save --smoke          # an hour of tank time, then 15 minutes of neglect; prints how it went
+godot --headless --path . -- --no-save --smoke          # months of tank time for three tanks (fed daily, fully stocked, left alone); prints how each went
+godot --path . -- --no-save --speed=1440                # play with the tank's clock run fast: a day a minute
 godot --path . -- --no-save --shots=C:/some/folder      # screenshots of the tank and each sheet, wide and tall
 godot --headless --path . --export-release "Web" build/index.html
 ```

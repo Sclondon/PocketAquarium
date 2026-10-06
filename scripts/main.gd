@@ -3,7 +3,7 @@ extends Node
 ## target, the camera that turns about the tank, what a tap or a drag does, and saving.
 ##
 ## Run with `-- --no-save` for a new tank that is never saved, `--tickets=N` for a wallet of
-## that size, and `--shots=FOLDER` or `--smoke` for the automated tour (tools/autotest.gd).
+## that size, `--speed=N` to run the tank's clock N times too fast (1440 is a day a minute), and `--shots=FOLDER` or `--smoke` for the automated tour (tools/autotest.gd).
 
 const Tank := preload("res://scripts/tank/tank.gd")
 const Species := preload("res://scripts/tank/species.gd")
@@ -67,6 +67,8 @@ func _ready() -> void:
 	_place_camera()
 
 	for arg in OS.get_cmdline_user_args():
+		if arg.begins_with("--speed="):
+			tank.time_scale = maxf(float(arg.get_slice("=", 1)), 0.0)
 		if arg.begins_with("--shots=") or arg == "--smoke":
 			var test := Autotest.new()
 			test.main = self
@@ -193,6 +195,8 @@ func _tap(at: Vector2) -> void:
 		return
 	if tool == "feed":
 		var mid := (through[0] + through[1]) * 0.5
+		if not tank.anyone_hungry():
+			hud.say("Nobody is hungry. Food left on the gravel rots.")
 		tank.drop_food(mid.x, mid.z)
 		Sfx.play("plop", randf_range(0.9, 1.3))
 	else:

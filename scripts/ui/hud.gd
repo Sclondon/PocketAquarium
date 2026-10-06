@@ -19,6 +19,7 @@ var dex: Dex
 
 var _tickets: Label
 var _wallet_note: Label
+var _day: Label
 var _gauges := {}
 var _tools := {}
 var _lamp: Button
@@ -61,6 +62,8 @@ func setup(in_tank) -> void:
 	purse_col.add_child(_wallet_note)
 	_tickets = UiKit.label("0", 30, UiKit.GOLD)
 	purse_col.add_child(_tickets)
+	_day = UiKit.label("DAY 1", 14, UiKit.PAPER, 0)
+	purse_col.add_child(_day)
 	Tickets.changed.connect(_show_tickets)
 	_show_tickets()
 
@@ -171,11 +174,17 @@ func _process(_delta: float) -> void:
 	_set_gauge("room", 1.0 - tank.crowd() / tank.capacity())
 	_lamp.text = "LAMP ON" if tank.lamp_on else "LAMP OFF"
 	_water.disabled = not tank.can_change_water()
-	_water.text = "WATER" if tank.can_change_water() else "%d s" % ceili(tank.water_wait)
+	if tank.can_change_water():
+		_water.text = "WATER"
+	elif tank.water_wait > 3600.0:
+		_water.text = "%d h" % ceili(tank.water_wait / 3600.0)
+	else:
+		_water.text = "%d min" % ceili(tank.water_wait / 60.0)
+	_day.text = "DAY %d" % (int(tank.age / 86400.0) + 1)
 	if _card.visible and is_instance_valid(_fish):
 		_card_fed.value = 1.0 - _fish.hunger
 		_card_health.value = _fish.health
-		_card_stage.text = "%s %s" % [_fish.stage(), _fish.info().name]
+		_card_stage.text = "%s %s, %s" % [_fish.stage(), _fish.info().name, _fish.appetite()]
 
 
 ## A gauge turns red when it is low enough to be doing harm.
