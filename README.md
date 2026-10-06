@@ -99,9 +99,9 @@ godot --headless --path . --export-release "Web" build/index.html
 
 `--no-save` starts from a new tank and writes nothing, so tests leave the real one alone.
 
-The web build in  is served by GitHub Pages at
+The web build in `build/` is served by GitHub Pages at
 <https://sclondon.github.io/PocketAquarium/build/>. In the arcade it is a secret cart, on the
-shelf once AQUA has been typed into WaysideOS ( in
-scareathon-v3). After pushing a new build, bump the  cache-buster on
- in that repo's  to the new commit and push
+shelf once AQUA has been typed into WaysideOS (`src/pages/Arcade/unlocks.ts` in
+scareathon-v3). After pushing a new build, bump the `?v=` cache-buster on
+`POCKET_AQUARIUM_URL` in that repo's `src/pages/Arcade/games.tsx` to the new commit and push
 that too.
