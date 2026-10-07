@@ -45,5 +45,5 @@ renderer/rendering_method.mobile="gl_compatibility"
 
 psx_wobble={
 "type": "float",
-"value": 0.12
+"value": 0.0
 }

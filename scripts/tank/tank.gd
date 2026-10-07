@@ -28,6 +28,7 @@ const MB := preload("res://scripts/util/mesh_builder.gd")
 const Props := preload("res://scripts/tank/props.gd")
 const Species := preload("res://scripts/tank/species.gd")
 const Fish := preload("res://scripts/tank/fish.gd")
+const Water := preload("res://scripts/sim/water.gd")
 
 ## The tanks, smallest first: metres, how much fish it holds (the sum of their `load`), price.
 const SIZES := [
@@ -56,9 +57,24 @@ const WATER_WAIT := 6.0 * 3600.0
 ## The longest time away that is caught up on.
 const MAX_AWAY := 30.0 * DAY
 
-const CLEAN_WATER := Color(0.35, 0.8, 0.95)
-const SEA_WATER := Color(0.16, 0.5, 0.98)
-const FOUL_WATER := Color(0.42, 0.46, 0.16)
+const CLEAN_WATER := Color(0.72, 0.5, 0.24)
+const SEA_WATER := Color(0.1, 0.3, 0.9)
+const FOUL_WATER := Color(0.36, 0.4, 0.12)
+## The light in each kind of tank: the colour of its lamp, the tone of what the lamp does not
+## reach, what things fade into toward the back pane (see water_common.gdshaderinc), and the
+## colour the lamp throws out into the room.
+const LOOKS := {
+	"fresh": {"key": Color(1.0, 0.9, 0.72), "shadow": Color(0.3, 0.2, 0.36), "haze": Color(0.2, 0.11, 0.05), "spill": Color(1.0, 0.8, 0.58), "ink": Color(0.05, 0.03, 0.08)},
+	"sea": {"key": Color(0.7, 0.86, 1.0), "shadow": Color(0.12, 0.14, 0.42), "haze": Color(0.02, 0.05, 0.2), "spill": Color(0.4, 0.55, 1.0), "ink": Color(0.3, 0.42, 0.8)},
+}
+## What was in the first tank when the keeper came to it: the last keeper's fish, which do not
+## know this one yet.
+const LEFT_BEHIND := [
+	{"species": "betta", "name": "Admiral", "buddy": {"temper": "grumpy", "bond": 0.1, "spot": [0.7, 0.6, 0.5]}},
+	{"species": "kuhli", "name": "Bootlace", "buddy": {"temper": "shy", "bond": 0.05}},
+	{"species": "kuhli", "name": "Knot", "buddy": {"temper": "curious", "bond": 0.1}},
+	{"species": "kuhli", "name": "Mrs Noodle", "buddy": {"temper": "greedy", "bond": 0.1}},
+]
 ## What a new tank costs, by kind.
 const PRICES := {"fresh": 200, "sea": 500}
 const KIND_NAMES := {"fresh": "Fresh water tank", "sea": "Magic salt water tank"}
@@ -81,11 +97,36 @@ var decor := {}
 ## Every kind of animal ever kept, in any tank: main.gd gives every tank the same one.
 var dex := {}
 
-var o2 := 0.9
-var waste := 0.05
-var algae := 0.0
+## The water itself (sim/water.gd), and its three numbers by name.
+var water := Water.new()
+var o2: float:
+	get:
+		return water.o2
+	set(value):
+		water.o2 = value
+var waste: float:
+	get:
+		return water.waste
+	set(value):
+		water.waste = value
+var algae: float:
+	get:
+		return water.algae
+	set(value):
+		water.algae = value
 var lamp_on := true
 var water_wait := 0.0
+## Where the keeper's finger is on the glass, in the tank's own space (null when it is not).
+var finger: Variant = null
+## Where the keeper's torch shines into the tank, in its own space (null while it is off), and
+## whether it is the red one, which the animals take no notice of.
+var torch: Variant = null
+var torch_red := true
+## Seconds left of the animals coming to say hello (see `greet`).
+var greeting := 0.0
+## How many times each kind of thing has passed between the animals (see `notice`).
+var seen := {}
+
 ## How long the tank has been kept (seconds), and how fast its clock runs (1 is real time;
 ## only tests and `--speed=` change it).
 var age := 0.0
@@ -116,9 +157,14 @@ var _hatched := 0
 var _died := 0
 var _clock := 0.0
 var _lamp := 1.0
+## Where each shoaling kind is heading, and until when (see `shoal_goal`).
+var _shoals := {}
+var _next_id := 1
 
 
 func _ready() -> void:
+	# (drawn from the one run-wide source, so `--seed=` makes a whole run repeat itself)
+	_rng.seed = randi()
 	_mat = ShaderMaterial.new()
 	_mat.shader = preload("res://shaders/psx.gdshader")
 	_mat.set_shader_parameter("wet", 1.0)
@@ -261,7 +307,9 @@ func load_state(data: Dictionary) -> void:
 	rebuild()
 	var saved: Array = data.get("fish", [])
 	if not data.has("fish") and kind == "fresh":
-		saved = [{"species": "guppy"}, {"species": "guppy"}]
+		# a tank that is bought comes with two guppies. The first tank of all was somebody else's
+		# before it was the keeper's, and what is in it has names already
+		saved = [{"species": "guppy"}, {"species": "guppy"}] if data.has("kind") else LEFT_BEHIND
 	for entry in saved:
 		if entry is Dictionary and Species.LIST.has(str(entry.get("species", ""))) and Species.water(entry.species) == kind:
 			_spawn(entry)
@@ -464,6 +512,31 @@ func drop_food(x: float, z: float) -> void:
 		_foods.append({"node": node, "age": 0.0, "landed": false, "spin": _rng.randf() * TAU})
 
 
+## Holds a pinch of food out at a place on the glass (in the tank's own space) for whoever
+## will come and take it from the keeper's fingers, or lets go of it (null) to sink.
+func offer(at: Variant) -> void:
+	for food in _foods:
+		if food.get("held", false):
+			if at == null:
+				food.held = false
+			else:
+				food.node.position = _hold_at(at)
+			return
+	if at == null or _foods.size() >= MAX_FOOD:
+		return
+	var node := _instance(_flake, _mat)
+	node.position = _hold_at(at)
+	node.scale = Vector3.ONE * 1.6
+	_life.add_child(node)
+	_foods.append({"node": node, "age": 0.0, "landed": false, "spin": 0.0, "held": true})
+
+
+## Where food held at a place on the glass is: just inside it, and under the water.
+func _hold_at(at: Vector3) -> Vector3:
+	return Vector3(clampf(at.x, -width * 0.5 + 0.1, width * 0.5 - 0.1), clampf(at.y, 0.3, water_level - 0.06),
+			clampf(at.z, -depth * 0.5 + 0.1, depth * 0.5 - 0.1))
+
+
 ## Wipes algae off the glass (`amount` is how much of it, 0 to 1).
 func scrub(amount: float) -> void:
 	algae = maxf(algae - amount, 0.0)
@@ -506,6 +579,9 @@ func pick_fish(from: Vector3, dir: Vector3) -> Fish:
 ## Puts a new fish in the tank (the caller has checked there is room).
 func add_fish(species: String, growth := 1.0) -> Fish:
 	var f := _spawn({"species": species, "growth": growth})
+	# (it has only just met the keeper)
+	f.buddy.bond = 0.0
+	f.buddy.met = Time.get_unix_time_from_system()
 	changed.emit()
 	return f
 
@@ -513,6 +589,8 @@ func add_fish(species: String, growth := 1.0) -> Fish:
 ## Takes a fish out for good: given away, or netted once it has died.
 func remove_fish(f: Fish) -> void:
 	fish.erase(f)
+	for other in fish:
+		other.buddy.forget(f.buddy.id)
 	f.queue_free()
 	changed.emit()
 
@@ -557,10 +635,14 @@ func grow() -> void:
 # ------------------------------------------------------------------ what fish.gd asks for
 
 ## The nearest flake of food to a place ({} when there is none).
-func nearest_food(at: Vector3) -> Dictionary:
+## The food nearest a place (empty if there is none). An animal that will not come to the
+## keeper's hand (`wary`) does not count what the keeper is holding out.
+func nearest_food(at: Vector3, wary := false) -> Dictionary:
 	var best := {}
 	var best_d := INF
 	for food in _foods:
+		if wary and food.get("held", false):
+			continue
 		var d := at.distance_squared_to(food.node.position)
 		if d < best_d:
 			best = food
@@ -596,11 +678,62 @@ func _say(text: String, sound: String, pitch := 1.0) -> void:
 		Sfx.play(sound, pitch)
 
 
+# ------------------------------------------------------------------ the keeper, and company
+
+## The keeper has come to look. Every animal's bond takes note of the visit (the first of a day
+## warms it, and days missed cool it), and the ones that know the keeper come to the front.
+func greet() -> void:
+	greeting = 8.0
+	var day := int(Time.get_unix_time_from_system() / DAY)
+	for f in fish:
+		if not f.dead:
+			f.buddy.visit(day)
+
+
+## The keeper's finger is on the glass at `at` (in the tank's own space), or has been lifted
+## (null). One that is moved fast startles whatever is near it.
+func point_at(at: Variant, speed := 0.0) -> void:
+	finger = at
+	if at != null and speed > 2.0:
+		tap(at)
+
+
+## Shines the keeper's torch into the tank at a place on the glass (null puts it out). A white
+## one sends whatever it falls on into hiding; a red one they do not see, which is how to
+## watch the ones that only come out in the dark.
+func shine(at: Variant, red := true) -> void:
+	torch = at
+	torch_red = red
+
+
+## Something passed between two animals, or between one and the keeper, that a watcher would
+## have seen: a chase, a friendship made, one coming to the finger. Counted by kind in `seen`.
+func notice(kind: String, _a: Fish, _b: Fish = null) -> void:
+	seen[kind] = int(seen.get(kind, 0)) + 1
+
+
+## Somewhere out of the way for an animal at `at` to go: low down at the back, on its own side.
+func hide_for(at: Vector3) -> Vector3:
+	return Vector3((1.0 if at.x >= 0.0 else -1.0) * width * 0.36, 0.32, -depth * 0.36)
+
+
+## Where the shoal of a kind is heading: somewhere in open water, a new place every few seconds.
+func shoal_goal(species: String) -> Vector3:
+	var goal: Dictionary = _shoals.get(species, {})
+	if goal.is_empty() or _clock > float(goal.until):
+		var box := swim_box(0.3)
+		goal = {"at": box.position + box.size * Vector3(_rng.randf(), _rng.randf_range(0.2, 0.9), _rng.randf()),
+				"until": _clock + _rng.randf_range(4.0, 9.0)}
+		_shoals[species] = goal
+	return goal.at
+
+
 # ------------------------------------------------------------------ the simulation
 
 ## Moves the whole tank on by `delta` seconds.
 func step(delta: float) -> void:
 	_clock += delta
+	greeting = maxf(greeting - delta, 0.0)
 	_lamp = move_toward(_lamp, 1.0 if lamp_on else 0.0, delta * 2.0)
 	var lived := delta * time_scale
 	for f in fish:
@@ -618,27 +751,20 @@ func step(delta: float) -> void:
 func _step_water(dt: float) -> void:
 	age += dt
 	water_wait = maxf(water_wait - dt, 0.0)
-	var light := 1.0 if lamp_on else 0.15
 	var bodies := 0
 	for f in fish:
 		bodies += int(f.dead)
-	var crowded := crowd()
-	# (each of these heads for a resting level, so a long step is as good as many short ones)
-	var exchange := 0.05 * (2.5 if gear.has("pump") else 1.0) + plants * 0.012 * light
-	var o2_rest := 1.0 - (crowded * 0.0045 + waste * 0.004) / exchange
-	o2 = clampf(lerpf(o2_rest, o2, exp(-exchange * dt)), 0.0, 1.0)
-	# a day's waste: 0.03 for each fish's worth of room, more for a body left in; a day's
-	# cleaning takes this share of what is there
-	var making := (crowded * 0.03 + bodies * 0.1) / DAY
-	var cleaning := (0.05 + (0.4 if gear.has("filter") else 0.0) + plants * 0.05 * light) / DAY
-	waste = clampf(lerpf(making / cleaning, waste, exp(-cleaning * dt)), 0.0, 1.0)
-	algae = clampf(algae + dt / DAY * ((0.1 + 0.2 * waste) * light - snails * 0.06), 0.0, 1.0)
+	water.step(dt, crowd(), bodies, plants, snails, lamp_on, gear.has("pump"), gear.has("filter"))
 
 
 func _step_food(delta: float) -> void:
 	for food in _foods.duplicate():
 		var node: MeshInstance3D = food.node
-		if not food.landed:
+		if food.get("held", false):
+			# (in the keeper's fingers: it turns a little, and stays where it is held)
+			node.rotation.y = _clock * 2.0
+		elif not food.landed:
+			node.scale = Vector3.ONE
 			var p := node.position
 			p.y -= 0.16 * delta
 			p.x += sin(_clock * 2.0 + food.spin) * 0.03 * delta
@@ -708,6 +834,9 @@ func _step_eggs(delta: float) -> void:
 		var at: Vector3 = egg.node.position
 		egg.node.queue_free()
 		var f := _spawn({"species": egg.species, "growth": 0.0})
+		# (it was born here, and has seen the keeper about since it was an egg)
+		f.buddy.met = Time.get_unix_time_from_system()
+		f.buddy.bond = 0.1
 		f.position = at + Vector3(0.0, 0.25, 0.0)
 		_hatched += 1
 		_say("An egg has hatched: %s the %s." % [f.fish_name, f.info().name], "egg", 1.3)
@@ -760,14 +889,27 @@ func lamp_glow() -> float:
 
 ## The lamp, the colour of the water, the algae and the bubbles.
 func _step_looks(light: float) -> void:
-	_light.light_energy = 4.0 * _lamp
-	_hood.albedo_color = Color(0.9, 0.98, 1.0) * lerpf(0.08, 1.0, _lamp)
-	var glow := lerpf(0.12, 1.0, _lamp)
+	_light.light_energy = 3.6 * _lamp
+	_hood.albedo_color = (LOOKS[kind].key as Color) * lerpf(0.06, 1.0, _lamp)
+	var glow := lerpf(0.24, 1.0, _lamp)
+	var look: Dictionary = LOOKS[kind]
 	for mat: ShaderMaterial in [_mat, _plant_mat, _sand]:
 		mat.set_shader_parameter("lamp", glow)
+		mat.set_shader_parameter("key", look.key)
+		mat.set_shader_parameter("shadow", look.shadow)
+		mat.set_shader_parameter("haze", look.haze)
+		mat.set_shader_parameter("tank_depth", depth)
+	var beam := Color(0.9, 0.12, 0.08) if torch_red else Color(1.0, 0.97, 0.88)
+	if torch == null:
+		beam = Color.BLACK
+	var beam_at: Vector3 = position + (torch if torch != null else Vector3.ZERO)
+	for mat: ShaderMaterial in [_mat, _plant_mat, _sand]:
+		mat.set_shader_parameter("torch_at", beam_at)
+		mat.set_shader_parameter("torch_light", beam)
 	for f in fish:
-		f.set_lamp(glow)
-	_light.light_color = Color(0.8, 0.95, 1.0) if kind == "fresh" else Color(0.72, 0.8, 1.0)
+		f.set_light(glow, look, depth)
+		f.set_torch(beam_at, beam)
+	_light.light_color = look.spill
 	var colour := (CLEAN_WATER if kind == "fresh" else SEA_WATER).lerp(FOUL_WATER, waste)
 	for mat: ShaderMaterial in [_glass, _back, _top]:
 		mat.set_shader_parameter("water", colour)
@@ -789,6 +931,10 @@ func _spawn(data: Dictionary) -> Fish:
 	var f := Fish.new()
 	_life.add_child(f)
 	f.setup(self, data)
+	# (each animal of a tank has a number of its own, which the others' ties are kept by)
+	if f.buddy.id <= 0 or fish.any(func(other: Fish) -> bool: return other.buddy.id == f.buddy.id):
+		f.buddy.id = _next_id
+	_next_id = maxi(_next_id, f.buddy.id + 1)
 	fish.append(f)
 	if not dex.has(f.species):
 		dex[f.species] = true

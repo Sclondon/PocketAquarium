@@ -45,10 +45,7 @@ func refresh() -> void:
 	for i in SHELVES.size():
 		# the shelf being looked at is the gold one
 		var tab: Button = strip.get_child(i)
-		if SHELVES[i] == _shelf:
-			tab.add_theme_stylebox_override("normal", UiKit.card(UiKit.GOLD, UiKit.INK, 3, 8))
-		else:
-			tab.remove_theme_stylebox_override("normal")
+		UiKit.hold(tab, SHELVES[i] == _shelf)
 	if _shelf == "FISH":
 		body.add_child(UiKit.label("Room in the tank: %.1f of %d" % [tank.capacity() - tank.crowd(), int(tank.capacity())], 18, UiKit.TEAL))
 		for id: String in Species.ORDER:

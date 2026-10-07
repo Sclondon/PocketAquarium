@@ -8,43 +8,58 @@ extends MeshInstance3D
 
 const Species := preload("res://scripts/tank/species.gd")
 const FishMesh := preload("res://scripts/tank/fish_mesh.gd")
+const Models := preload("res://scripts/tank/models.gd")
+const Life := preload("res://scripts/sim/life.gd")
+const Buddy := preload("res://scripts/sim/buddy.gd")
 
-const DAY := 86400.0
-## Seconds from a full stomach to starving, and from hatching to full-grown (when fed).
-const HUNGER_TIME := 3.0 * DAY
-const GROW_TIME := 7.0 * DAY
-## How hungry it has to be to eat (it gets there about half a day after a full meal), how
-## hungry it is a day after one, and how much one flake fills it.
-const PECKISH := 0.2
-const HUNGRY := 0.33
-const FLAKE := 0.34
-## Above this hunger, below this oxygen or above this waste, it is being harmed.
-const STARVING := 0.92
-const LOW_OXYGEN := 0.3
-const FOUL := 0.75
-## How long each of those takes to kill a healthy fish (for oxygen and waste, at their very
-## worst: just past the line they do far less harm), and how long a sick one takes to mend.
-const STARVE_TIME := 3.0 * DAY
-const CHOKE_TIME := 4.0 * 3600.0
-const FOUL_TIME := 2.0 * DAY
-const HEAL_TIME := DAY
+const DAY := Life.DAY
+const PECKISH := Life.PECKISH
 ## Model units to metres, for a full-grown fish of size 1.
 const SCALE := 0.15
 
 var species := "guppy"
 var fish_name := ""
-## 0 newly hatched to 1 full-grown
-var growth := 1.0
-var hunger := 0.3
-var health := 1.0
-var dead := false
-## Seconds until it can breed again
-var breed_wait := 2.0 * DAY
+## Its life in numbers (sim/life.gd): hunger, health, growth, and whether it is still alive.
+## The ones the rest of the game asks after can be had by name.
+var life := Life.new()
+var growth: float:
+	get:
+		return life.growth
+	set(value):
+		life.growth = value
+var hunger: float:
+	get:
+		return life.hunger
+	set(value):
+		life.hunger = value
+var health: float:
+	get:
+		return life.health
+	set(value):
+		life.health = value
+var dead: bool:
+	get:
+		return life.dead
+var breed_wait: float:
+	get:
+		return life.breed_wait
+	set(value):
+		life.breed_wait = value
+
+## What makes it itself: its temper, how well it knows the keeper, and how it stands with the
+## others (sim/buddy.gd).
+var buddy := Buddy.new()
+## What it is about just now, in a word (see `_decide`): wandering, feeding, following (the
+## keeper's finger), hiding, greeting, sleeping, begging, chasing, fleeing, keeping company,
+## shoaling or sulking.
+var doing := "wandering"
 
 ## The tank it lives in (tank.gd)
 var tank
 
 var _mat: ShaderMaterial
+## The ink line round it (outline.gdshader), which has to bend exactly as the skin does.
+var _line: ShaderMaterial
 var _vel := Vector3.ZERO
 var _burst := Vector3.ZERO
 var _target := Vector3.ZERO
@@ -56,10 +71,20 @@ var _roll := 0.0
 ## Its build: "fish", "squid" or "jelly" (a jellyfish stays upright and only drifts)
 var _plan := "fish"
 var _rng := RandomNumberGenerator.new()
+var _think := 0.0
+## The animal it is chasing, fleeing or keeping company with, how long a chase has left to run,
+## and how long it has been at its friend's side.
+var _with: Node
+var _busy := 0.0
+var _company := 0.0
+## How fast it is going about what it is doing, beside its ordinary speed.
+var _pace := 1.0
+var _seen_by_torch := false
 
 
 func setup(in_tank, data: Dictionary) -> void:
 	tank = in_tank
+	_rng.seed = randi()
 	species = data.get("species", "guppy")
 	if not Species.LIST.has(species):
 		species = "guppy"
@@ -70,14 +95,22 @@ func setup(in_tank, data: Dictionary) -> void:
 	hunger = clampf(data.get("hunger", 0.3), 0.0, 1.0)
 	health = clampf(data.get("health", 1.0), 0.01, 1.0)
 	breed_wait = data.get("breed_wait", 2.0 * DAY)
-	mesh = FishMesh.of(species)
+	buddy.load_data(data.get("buddy", {}), _rng)
+	var modelled := Models.of(species) != null
+	mesh = Models.of(species) if modelled else FishMesh.of(species)
 	_mat = ShaderMaterial.new()
 	_mat.shader = preload("res://shaders/fish.gdshader")
-	_mat.set_shader_parameter("wag_phase", _rng.randf() * TAU)
+	_line = ShaderMaterial.new()
+	_line.shader = preload("res://shaders/outline.gdshader")
+	_mat.next_pass = _line
+	_mat.set_shader_parameter("modelled", modelled)
+	_line.set_shader_parameter("modelled", modelled)
+	_wag = _rng.randf() * TAU
+	_bend("wag_phase", _wag)
 	var look: Dictionary = info().look
 	_plan = look.get("plan", "fish")
-	_mat.set_shader_parameter("swim", 2 if _plan == "jelly" else (1 if look.get("flukes", false) else 0))
-	_mat.set_shader_parameter("wag_amp", 0.07 if _plan == "squid" else 0.12)
+	_bend("swim", 2 if _plan == "jelly" else (1 if look.get("flukes", false) else 0))
+	_bend("wag_amp", Species.habit(species, "wag", 0.07 if _plan == "squid" else 0.12))
 	_mat.set_shader_parameter("spots", look.get("spots", 0.0))
 	_mat.set_shader_parameter("spot_color", look.get("spot", Color(0.05, 0.08, 0.1)))
 	material_override = _mat
@@ -89,7 +122,7 @@ func setup(in_tank, data: Dictionary) -> void:
 
 func to_data() -> Dictionary:
 	return {"species": species, "name": fish_name, "growth": growth, "hunger": hunger, "health": health,
-			"breed_wait": breed_wait}
+			"breed_wait": breed_wait, "buddy": buddy.to_data()}
 
 
 func info() -> Dictionary:
@@ -110,9 +143,28 @@ func reach() -> float:
 	return _size() * 1.15
 
 
-## How bright the lamp of the tank it is in is (tank.gd tells it).
-func set_lamp(amount: float) -> void:
+## How bright the lamp of the tank it is in is, and the tones of that tank's light (tank.gd
+## tells it: see `Tank.LOOKS`).
+func set_light(amount: float, look: Dictionary, depth: float) -> void:
 	_mat.set_shader_parameter("lamp", amount)
+	_mat.set_shader_parameter("key", look.key)
+	_mat.set_shader_parameter("shadow", look.shadow)
+	_mat.set_shader_parameter("haze", look.haze)
+	_mat.set_shader_parameter("tank_depth", depth)
+	_line.set_shader_parameter("ink", look.ink)
+	_line.set_shader_parameter("lamp", amount)
+
+
+## Where the keeper's torch is shining (in the world) and what colour (black for off).
+func set_torch(at: Vector3, light: Color) -> void:
+	_mat.set_shader_parameter("torch_at", at)
+	_mat.set_shader_parameter("torch_light", light)
+
+
+## Sets one of the numbers it swims by, on its skin and on its outline alike.
+func _bend(what: String, value: Variant) -> void:
+	_mat.set_shader_parameter(what, value)
+	_line.set_shader_parameter(what, value)
 
 
 func _size() -> float:
@@ -125,9 +177,7 @@ func stage() -> String:
 
 ## How hungry it is, in a word.
 func appetite() -> String:
-	if hunger > STARVING:
-		return "starving"
-	return "hungry" if hunger > HUNGRY else ("peckish" if hunger > PECKISH else "full")
+	return life.appetite()
 
 
 ## Bolts away from a point.
@@ -157,54 +207,48 @@ func tick(delta: float, lived: float) -> void:
 ## Its hunger, growth and health over `delta` seconds (which may be many, when catching up
 ## on time away).
 func live(delta: float) -> void:
-	hunger = minf(hunger + delta / HUNGER_TIME, 1.0)
-	breed_wait = maxf(breed_wait - delta, 0.0)
-	if growth < 1.0 and hunger < 0.7:
-		growth = minf(growth + delta / GROW_TIME, 1.0)
-	var harm := 0.0
-	if hunger > STARVING:
-		harm += delta / STARVE_TIME
-	if tank.o2 < LOW_OXYGEN:
-		harm += delta / CHOKE_TIME * maxf(1.0 - tank.o2 / LOW_OXYGEN, 0.1)
-	if tank.waste > FOUL:
-		harm += delta / FOUL_TIME * maxf((tank.waste - FOUL) / (1.0 - FOUL), 0.1)
-	if harm > 0.0:
-		health -= harm
-	else:
-		health = minf(health + delta / HEAL_TIME, 1.0)
-	_mat.set_shader_parameter("pale", clampf(1.0 - health * 1.6, 0.0, 0.8))
-	if health <= 0.0:
-		dead = true
-		health = 0.0
-		_mat.set_shader_parameter("pale", 1.0)
+	var died := life.live(delta, tank.o2, tank.waste)
+	_mat.set_shader_parameter("pale", 1.0 if dead else clampf(1.0 - health * 1.6, 0.0, 0.8))
+	if died:
 		tank.fish_died(self)
 
 
 func _swim(delta: float) -> void:
 	var box: AABB = tank.swim_box(minf(reach(), 0.3))
-	var chasing := false
-	if hunger > PECKISH:
-		var food: Dictionary = tank.nearest_food(position)
+	_busy = maxf(_busy - delta, 0.0)
+	var feeding := false
+	if hunger > PECKISH and doing != "fleeing":
+		# (only one that is used to the keeper will take food from the keeper's fingers)
+		var food: Dictionary = tank.nearest_food(position, buddy.stage() == "new")
 		if not food.is_empty():
-			chasing = true
+			feeding = true
+			doing = "feeding"
+			_pace = 1.9
 			_target = food.node.position
 			if position.distance_to(_target) < reach() + 0.04:
+				if food.get("held", false):
+					buddy.fed()
+					buddy.note("Ate from your fingers")
+					tank.notice("ate from the hand", self)
 				tank.eat(food)
-				hunger = maxf(hunger - FLAKE, 0.0)
-	if not chasing:
-		_retarget -= delta
-		if _retarget <= 0.0 or position.distance_to(_target) < 0.12:
-			_retarget = _rng.randf_range(2.0, 6.0)
-			_target = box.position + box.size * Vector3(_rng.randf(), _rng.randf(), _rng.randf())
-	var speed := 0.32 * float(info().speed) * (1.9 if chasing else 1.0) * lerpf(0.4, 1.0, health)
+				life.eat()
+				buddy.fed()
+	if not feeding:
+		_think -= delta
+		if _think <= 0.0:
+			_think = _rng.randf_range(0.3, 0.6)
+			_decide()
+		_steer(delta, box)
+	var speed := 0.32 * float(info().speed) * _pace * lerpf(0.4, 1.0, health)
 	var to := _target - position
 	var want := to.normalized() * speed if to.length() > 0.02 else Vector3.ZERO
 	_vel = _vel.lerp(want, 1.0 - exp(-2.5 * delta))
 	_burst = _burst.lerp(Vector3.ZERO, 1.0 - exp(-2.0 * delta))
 	var v := _vel + _burst
-	# (after food it will nose right down to the gravel, which it otherwise keeps clear of)
+	# (after food, and to sleep, it will nose right down to the gravel, which it otherwise
+	# keeps clear of)
 	var low := box.position
-	if chasing:
+	if feeding or doing in ["sleeping", "buried"]:
 		low.y = 0.12 + _size() * 0.3
 	position = (position + v * delta).clamp(low, box.end)
 	if v.length() > 0.02:
@@ -214,10 +258,301 @@ func _swim(delta: float) -> void:
 		if turned.length() < 0.05:
 			turned = Vector3(dir.z, 0.0, -dir.x)
 		_heading = turned.normalized()
+	# one that knows the keeper well wriggles when it says hello
+	if doing == "greeting" and buddy.stage() == "close":
+		_roll = sin(_wag * 1.5) * 0.3
+	else:
+		_roll = move_toward(_roll, 0.0, delta * 2.0)
 	# (the big ones beat slowly)
 	_wag += delta * (4.0 + v.length() * 18.0) / maxf(float(info().size), 0.6)
-	_mat.set_shader_parameter("wag_phase", _wag)
+	_bend("wag_phase", _wag)
 	_apply_pose()
+
+
+# ------------------------------------------------------------------ what it is about
+
+## Makes up its mind what to be about (`doing`), a couple of times a second. In order: it sees
+## out a chase; it minds the keeper's finger; it says hello; it sleeps when the lamp is off;
+## it begs when it is hungry and knows who feeds it; and otherwise it minds the others, by its
+## kind and its temper: guards its patch, keeps a friend company, shoals, or just wanders.
+func _decide() -> void:
+	if _plan == "jelly":
+		doing = "wandering"
+		return
+	if _busy > 0.0 and is_instance_valid(_with) and not _with.dead and doing in ["chasing", "fleeing"]:
+		return
+	_with = null
+	var stage := buddy.stage()
+	var temper := buddy.temper
+	if tank.lamp_on:
+		_seen_by_torch = false
+	if tank.torch != null:
+		var off := Vector2(position.x - tank.torch.x, position.y - tank.torch.y).length()
+		if off < 0.5 and not tank.torch_red:
+			# a white light in the dark: it bolts, and keeps out of the way
+			if doing != "hiding":
+				startle(Vector3(tank.torch.x, tank.torch.y, position.z))
+				tank.notice("fled the torch", self)
+			doing = "hiding"
+			return
+		if off < 0.4 and tank.torch_red and not tank.lamp_on and not _seen_by_torch:
+			# watched by red light, which it cannot see: the keeper learns what it does at night
+			_seen_by_torch = true
+			buddy.note("Watched by red torch: %s" % ("up and about" if Species.habit(species, "night") else "fast asleep"))
+			tank.notice("watched at night", self)
+	if tank.finger != null:
+		var near: bool = position.distance_to(tank.finger) < 1.0
+		if stage in ["friendly", "close"] or temper == "curious" or (temper == "bold" and stage != "new"):
+			if doing != "following":
+				tank.notice("came to the finger", self)
+			doing = "following"
+			return
+		if near and (stage == "new" or temper == "shy"):
+			doing = "hiding"
+			return
+	# one that keeps the night lies buried while the lamp is on, and is up and about when it is off
+	var nocturnal: bool = Species.habit(species, "night")
+	if nocturnal and tank.lamp_on:
+		doing = "buried"
+		return
+	if tank.greeting > 0.0 and stage in ["friendly", "close"]:
+		doing = "greeting"
+		return
+	if not tank.lamp_on and not nocturnal:
+		doing = "sleeping"
+		return
+	if hunger > Life.HUNGRY and stage in ["friendly", "close"]:
+		doing = "begging"
+		return
+	_mind_the_others()
+
+
+## The part of making up its mind that is about the other animals. Being near one, over and
+## over, is what makes two of them friends or rivals: see `_meet`.
+func _mind_the_others() -> void:
+	var here := _spot()
+	var own_kind := 0
+	var intruder: Node = null
+	var friend: Node = null
+	for other in tank.fish:
+		if other == self or other.dead:
+			continue
+		var gap: float = position.distance_to(other.position)
+		if other.species == species:
+			own_kind += 1
+		if gap < 0.25 + reach():
+			_meet(other)
+		if buddy.is_friend(other.buddy.id) and (friend == null or gap < position.distance_to(friend.position)):
+			friend = other
+		if other.position.distance_to(here) < 0.3 + reach() and not buddy.is_friend(other.buddy.id) and other.reach() <= reach() * 1.5:
+			intruder = other
+	if intruder != null and is_adult() and (buddy.temper == "grumpy" or Species.guards(species)) and _rng.randf() < 0.15:
+		doing = "chasing"
+		_with = intruder
+		_busy = 2.5
+		intruder.chased_by(self)
+		return
+	if Species.shoals(species):
+		doing = "shoaling" if own_kind >= 2 else "sulking"
+		return
+	if friend != null and _rng.randf() < 0.7:
+		doing = "keeping company"
+		_with = friend
+		return
+	doing = "wandering"
+
+
+## Two animals close by each other. Mostly nothing comes of it. Whether anything ever does is
+## settled between the two of them for good (their `chemistry`, which comes of who they are):
+## some pairs take to each other a little more each time, a few take against, and most stay
+## strangers. Their own kind are easier to like, and a grumpy one is easier to fall out with.
+func _meet(other: Node) -> void:
+	if _rng.randf() > 0.12:
+		return
+	var a := mini(buddy.id, other.buddy.id)
+	var b := maxi(buddy.id, other.buddy.id)
+	var chemistry := fposmod(sin(a * 73.0 + b * 151.0) * 43758.5, 1.0)
+	var sour: bool = buddy.temper == "grumpy" or other.buddy.temper == "grumpy"
+	var by := 0.0
+	if chemistry < (0.55 if other.species == species else 0.3):
+		by = 0.035
+	elif chemistry > (0.7 if sour else 0.88):
+		by = -0.035
+	if by == 0.0:
+		return
+	var before := buddy.tie(other.buddy.id)
+	buddy.nudge(other.buddy.id, by)
+	other.buddy.nudge(buddy.id, by)
+	if other.species == species and Species.habit(species, "croaks"):
+		Sfx.play("croak", _rng.randf_range(0.9, 1.15), -4.0)
+		tank.notice("croaked", self, other)
+		buddy.note("Croaked at %s" % other.fish_name)
+	var now := buddy.tie(other.buddy.id)
+	if before < Buddy.TIE and now >= Buddy.TIE:
+		buddy.note("Took to %s" % other.fish_name)
+		other.buddy.note("Took to %s" % fish_name)
+		tank.notice("made friends", self, other)
+	elif before > -Buddy.TIE and now <= -Buddy.TIE:
+		buddy.note("Fell out with %s" % other.fish_name)
+		other.buddy.note("Fell out with %s" % fish_name)
+		tank.notice("fell out", self, other)
+
+
+## Another animal is seeing it off.
+func chased_by(other: Node) -> void:
+	if dead or _plan == "jelly":
+		return
+	doing = "fleeing"
+	_with = other
+	_busy = 2.0
+	_burst = (position - other.position).normalized() * 0.9
+	buddy.nudge(other.buddy.id, -0.06)
+	other.buddy.nudge(buddy.id, -0.03)
+	tank.notice("chase", other, self)
+
+
+## Heads for wherever what it is doing takes it, at the pace that goes with it.
+func _steer(delta: float, box: AABB) -> void:
+	var front: float = box.end.z
+	_pace = 1.0
+	if doing in ["chasing", "fleeing", "keeping company"] and (not is_instance_valid(_with) or _with.dead):
+		doing = "wandering"
+	match doing:
+		"following":
+			var at: Vector3 = tank.finger if tank.finger != null else position
+			# (each has its own place about the finger, so they gather round it and do not pile up)
+			var about := Vector3(sin(buddy.id * 2.4), cos(buddy.id * 1.7), 0.0) * (0.1 + reach() * 1.2)
+			_target = (Vector3(at.x, at.y, minf(at.z, front)) + about).clamp(box.position, box.end)
+			_pace = 1.5
+			if position.distance_to(_target) < 0.4:
+				buddy.kept_company(delta)
+		"hiding", "sulking":
+			_target = tank.hide_for(position)
+			_pace = 1.4 if doing == "hiding" else 0.5
+		"buried":
+			var den: Vector3 = tank.hide_for(_spot())
+			_target = Vector3(den.x + (buddy.spot.z - 0.5) * 0.3, box.position.y, den.z)
+			_pace = 0.6
+		"greeting":
+			_target = Vector3(lerpf(box.position.x, box.end.x, 0.2 + 0.6 * buddy.spot.x),
+					lerpf(box.position.y, box.end.y, 0.3 + 0.5 * buddy.spot.y), front)
+			_pace = 1.4
+		"sleeping":
+			var bed := _spot()
+			_target = Vector3(bed.x, box.position.y + 0.05 + 0.2 * buddy.spot.y, bed.z)
+			_pace = 0.25
+		"begging":
+			_target = Vector3(lerpf(box.position.x, box.end.x, 0.15 + 0.7 * buddy.spot.x), box.end.y, front)
+			_pace = 1.1
+		"chasing":
+			_target = _with.position
+			_pace = 1.7
+			if position.distance_to(_target) < reach() + _with.reach():
+				_busy = 0.0
+				doing = "wandering"
+		"fleeing":
+			_target = (position + (position - _with.position).normalized() * 0.6).clamp(box.position, box.end)
+			_pace = 1.8
+		"keeping company":
+			# (a little to one side of its friend, and always the same side)
+			var side := 1.0 if buddy.id % 2 == 0 else -1.0
+			_target = (_with.position + Vector3(side * (0.1 + reach()), 0.03 * side, 0.05)).clamp(box.position, box.end)
+			if position.distance_to(_with.position) < 0.35 + reach():
+				_pace = 0.8
+				if _company <= 0.0:
+					tank.notice("kept company", self, _with)
+				_company += delta
+			else:
+				_company = 0.0
+		"shoaling":
+			# its own place in the shoal, which goes where the shoal goes
+			var place := Vector3(sin(buddy.id * 2.4), cos(buddy.id * 1.7) * 0.6, cos(buddy.id * 3.1)) * (0.12 + reach())
+			_target = (tank.shoal_goal(species) + place).clamp(box.position, box.end)
+			_pace = 1.15
+		_:
+			_retarget -= delta
+			if _retarget <= 0.0 or position.distance_to(_target) < 0.12:
+				_retarget = _rng.randf_range(2.0, 6.0)
+				_target = box.position + box.size * Vector3(_rng.randf(), _rng.randf(), _rng.randf())
+				# (half the time it stays about the part of the tank it likes)
+				if _rng.randf() < 0.5:
+					_target = (_spot() + Vector3(_rng.randf_range(-0.3, 0.3), _rng.randf_range(-0.15, 0.15),
+							_rng.randf_range(-0.2, 0.2))).clamp(box.position, box.end)
+	if doing in ["wandering", "shoaling", "keeping company", "greeting"]:
+		_target = _at_its_level(_target, box)
+
+
+## The place in the tank it likes to be.
+func _spot() -> Vector3:
+	var box: AABB = tank.swim_box(minf(reach(), 0.3))
+	return _at_its_level(box.position + box.size * buddy.spot, box)
+
+
+## A place, moved up or down into the part of the water its kind keeps to (if it keeps to one).
+func _at_its_level(at: Vector3, box: AABB) -> Vector3:
+	var share := (at.y - box.position.y) / box.size.y
+	match Species.habit(species, "level", ""):
+		"top":
+			at.y = box.position.y + box.size.y * lerpf(0.86, 1.0, share)
+		"middle":
+			at.y = box.position.y + box.size.y * lerpf(0.35, 0.7, share)
+		"bottom":
+			at.y = box.position.y + box.size.y * lerpf(0.0, 0.14, share)
+	return at
+
+
+## How it is, in a few words, for its card.
+func mood() -> String:
+	if dead:
+		return "dead"
+	if health < 0.6:
+		return "poorly"
+	var who: String = _with.fish_name if is_instance_valid(_with) else "someone"
+	match doing:
+		"sleeping":
+			return "asleep"
+		"hiding":
+			return "hiding from you"
+		"buried":
+			return "buried till dark"
+		"sulking":
+			return "sulking for want of its own kind"
+		"begging":
+			return "begging"
+		"greeting":
+			return "saying hello"
+		"following":
+			return "at your finger"
+		"feeding":
+			return "eating"
+		"chasing":
+			return "seeing %s off" % who
+		"fleeing":
+			return "keeping clear of %s" % who
+		"keeping company":
+			return "with %s" % who
+		"shoaling":
+			return "with the shoal"
+	return "perky" if buddy.stage() != "new" else "wary"
+
+
+## Who its friends and rivals are, in a line (empty if it has neither).
+func company() -> String:
+	var friends: Array[String] = []
+	var rivals: Array[String] = []
+	for other in tank.fish:
+		if other == self or other.dead:
+			continue
+		if buddy.is_friend(other.buddy.id):
+			friends.append(other.fish_name)
+		elif buddy.is_rival(other.buddy.id):
+			rivals.append(other.fish_name)
+	var lines: Array[String] = []
+	if not friends.is_empty():
+		lines.append("Friends with " + ", ".join(friends.slice(0, 3)))
+	if not rivals.is_empty():
+		lines.append("No friend of " + ", ".join(rivals.slice(0, 2)))
+	return ". ".join(lines)
 
 
 func _float_up(delta: float) -> void:

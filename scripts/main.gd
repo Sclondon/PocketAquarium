@@ -1,10 +1,11 @@
 extends Node
-## Pocket Aquarium: a shelf of small tanks to keep. This is the frame round them: the low-res
-## render target, the three slots of the shelf and which is being looked at, the camera that
+## Pocket Aquarium: a shelf of small tanks to keep. This is the frame round them: the
+## picture, the three slots of the shelf and which is being looked at, the camera that
 ## turns about a tank or follows a fish, what a tap or a drag does, and saving.
 ##
 ## Run with `-- --no-save` for a new shelf that is never saved, `--tickets=N` for a wallet of
-## that size, `--speed=N` to run the tanks' clocks N times too fast (1440 is a day a minute), and
+## that size, `--speed=N` to run the tanks' clocks N times too fast (1440 is a day a minute),
+## `--seed=N` to make everything that is left to chance fall out the same way every run, and
 ## `--shots=FOLDER` or `--smoke` for the automated tour (tools/autotest.gd).
 
 const Tank := preload("res://scripts/tank/tank.gd")
@@ -13,8 +14,9 @@ const Species := preload("res://scripts/tank/species.gd")
 const Hud := preload("res://scripts/ui/hud.gd")
 const Autotest := preload("res://scripts/tools/autotest.gd")
 
-## Screen pixels to one pixel of the 3D picture.
-const PIXEL := 2
+## The longest side the 3D picture is ever drawn at, in pixels: a bigger screen than this
+## shares each pixel of it between two or more of its own (see `_fit_picture`).
+const LONGEST := 1600
 const FOV := 40.0
 const SAVE_EVERY := 8.0
 ## The camera's range: shares of the fitting distance for the whole tank; and, for a fish that
@@ -26,6 +28,9 @@ const CLOSEST := 0.3
 const FOLLOW_FROM := 1.0
 ## The slot every shelf starts with a tank in: the middle one.
 const FIRST_SLOT := 1
+## Past the top shelf is the top of the unit, where the covered tank stands: it is looked at
+## like a slot, though no tank can be put there.
+const COVERED := 3
 
 ## The tank in each slot of the shelf, bottom to top (null where there is none yet).
 var tanks: Array[Tank] = [null, null, null]
@@ -33,17 +38,23 @@ var tanks: Array[Tank] = [null, null, null]
 var slot := FIRST_SLOT
 var tank: Tank:
 	get:
-		return tanks[slot]
+		return tanks[slot] if slot < tanks.size() else null
 ## Every kind of animal ever kept, shared by all the tanks.
 var dex := {}
 var room: Room
 var hud: Hud
 var camera: Camera3D
 var tool := "feed"
+## Whether the torch is the red one (which the animals cannot see) or the white.
+var torch_red := true
 var selected: Node
 
-var _container: SubViewportContainer
+## The 3D picture, stretched over the whole window. It is drawn in the window's own pixels
+## (see `_fit_picture`), not the HUD's, which are fewer on a big screen.
+var _container: TextureRect
 var _view: SubViewport
+## Screen pixels to one pixel of the 3D picture (1 unless the screen is bigger than LONGEST).
+var _shrink := 1
 var _yaw := 0.25
 var _pitch := 0.14
 ## How far off the camera is: a share of the distance that just fits the whole tank in. With a
@@ -57,24 +68,37 @@ var _dragging := false
 var _press_at := Vector2.ZERO
 var _touches := {}
 var _pinch := 0.0
+## Whether the finger now down went down on the glass with the hand tool, and when it last
+## moved (seconds).
+var _on_glass := false
+## With the food in hand, a finger held still on the glass holds a pinch out there (see
+## `Tank.offer`): when the finger went down, and whether it is holding food out now.
+var _pressed_when := 0.0
+var _offering := false
+var _pointed_at := 0.0
 var _save_in := SAVE_EVERY
 var _scrub_sound := 0.0
 var _speed := 1.0
 
 
 func _ready() -> void:
-	_container = SubViewportContainer.new()
+	_container = TextureRect.new()
 	_container.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	_container.stretch = true
-	_container.stretch_shrink = PIXEL
-	_container.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	_container.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	_container.stretch_mode = TextureRect.STRETCH_SCALE
+	_container.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
 	_container.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var post := ShaderMaterial.new()
 	post.shader = preload("res://shaders/post.gdshader")
 	_container.material = post
 	add_child(_container)
 	_view = SubViewport.new()
-	_container.add_child(_view)
+	_view.msaa_3d = Viewport.MSAA_2X
+	_view.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	add_child(_view)
+	_container.texture = _view.get_texture()
+	_fit_picture()
+	get_window().size_changed.connect(_fit_picture)
 	room = Room.new()
 	_view.add_child(room)
 	camera = Camera3D.new()
@@ -84,31 +108,36 @@ func _ready() -> void:
 	for arg in OS.get_cmdline_user_args():
 		if arg.begins_with("--speed="):
 			_speed = maxf(float(arg.get_slice("=", 1)), 0.0)
+		elif arg.begins_with("--seed="):
+			seed(int(arg.get_slice("=", 1)))
 
 	hud = Hud.new()
 	add_child(hud)
 	hud.setup()
 	hud.dex.kept = dex
 	hud.pad_input.connect(_on_pad)
-	hud.tool_picked.connect(func(picked: String) -> void: tool = picked)
+	hud.tool_picked.connect(_pick_tool)
 	hud.give_away.connect(_give_away)
 	hud.card_closed.connect(_select.bind(null))
 	hud.next_fish.connect(_select_next)
 	hud.shelf_stepped.connect(func(step: int) -> void: look_at_slot(slot + step))
 	hud.tank_wanted.connect(_buy_tank)
 
-	# the save: a tank for each slot (an older save has only the one, for the middle slot)
+	# the save: a tank for each slot (Save has already brought an older file up to date)
 	for id in Save.data.get("dex", []):
 		if Species.LIST.has(str(id)):
 			dex[str(id)] = true
 	var saved: Array = Save.data.get("tanks", [])
-	if saved.is_empty():
-		saved = [null, Save.data.get("tank", {}), null]
 	for i in tanks.size():
 		var data: Variant = saved[i] if i < saved.size() else null
 		if data is Dictionary or i == FIRST_SLOT:
 			add_tank(i, data if data is Dictionary else {})
 	look_at_slot(FIRST_SLOT)
+	if saved.is_empty():
+		hud.say("Somebody kept this tank before you. The fish have names already.")
+	for t in tanks:
+		if t != null:
+			t.greet()
 	_focus = _slot_centre()
 	_place_camera(1.0)
 
@@ -131,6 +160,18 @@ func _process(delta: float) -> void:
 	room.set_lamp(glow)
 	_place_camera(delta)
 	_scrub_sound = maxf(_scrub_sound - delta, 0.0)
+	# nobody puts the cloth back when a lamp comes on. It is back all the same
+	if room.is_uncovered() and _any_lamp():
+		room.uncover(false)
+		if slot == COVERED:
+			hud.say("The cloth is back over it. You did not put it there.")
+	# a finger held still on the glass, with the food in hand, holds a pinch out there
+	var held_for := Time.get_ticks_msec() * 0.001 - _pressed_when
+	if _pressed and not _dragging and not _offering and tool == "feed" and tank != null and held_for > 0.35:
+		var held := _through_tank(_press_at)
+		if not held.is_empty():
+			_offering = true
+			tank.offer(held[0])
 	if selected != null and (not is_instance_valid(selected) or selected.dead):
 		_select(null)
 	_save_in -= delta
@@ -150,8 +191,22 @@ func save() -> void:
 		kept.append(t.to_data() if t != null else null)
 	Save.data["tanks"] = kept
 	Save.data["dex"] = dex.keys()
-	Save.data.erase("tank")
 	Save.write()
+
+
+# ------------------------------------------------------------------ the picture
+
+## Sizes the 3D picture to the window: pixel for pixel, unless that would make its longest
+## side more than LONGEST.
+func _fit_picture() -> void:
+	var size := get_window().size
+	_shrink = maxi(ceili(maxf(size.x, size.y) / float(LONGEST)), 1)
+	_view.size = Vector2i((Vector2(size) / _shrink).ceil()).max(Vector2i(2, 2))
+
+
+## A point on the screen (in the HUD's coordinates) as a point in the 3D picture.
+func _in_view(at: Vector2) -> Vector2:
+	return at * Vector2(_view.size) / _container.size
 
 
 # ------------------------------------------------------------------ the shelf
@@ -173,8 +228,13 @@ func add_tank(at: int, data: Dictionary) -> Tank:
 ## Turns to another slot of the shelf (one with a tank in it or not).
 func look_at_slot(to: int) -> void:
 	_select(null)
-	slot = clampi(to, 0, tanks.size() - 1)
-	hud.show_slot(tank, slot, tanks.size())
+	slot = clampi(to, 0, COVERED)
+	hud.show_slot(tank, slot, COVERED + 1, slot != COVERED)
+	if slot == COVERED and not Save.data.get("cave", {}).has("found"):
+		Save.data["cave"] = {"found": true, "lifted": 0}
+		hud.say("It was here when you came. There is a note pinned to the cloth.")
+	if tank != null:
+		tank.greet()
 
 
 func _buy_tank(kind: String) -> void:
@@ -194,6 +254,8 @@ func _buy_tank(kind: String) -> void:
 func _slot_centre() -> Vector3:
 	if tank != null:
 		return tank.position + tank.centre()
+	if slot == COVERED:
+		return Vector3(0.0, Room.TOP + 0.55, -0.2)
 	return Vector3(0.0, Room.SLOTS[slot] + 0.75, 0.0)
 
 
@@ -270,16 +332,35 @@ func _on_pad(event: InputEvent) -> void:
 				_pressed = true
 				_dragging = false
 				_press_at = event.position
+				_pressed_when = Time.get_ticks_msec() * 0.001
+				# (with the hand, a finger put on the glass stays there for the animals to come to)
+				_on_glass = tool in ["hand", "torch"] and tank != null and not _through_tank(event.position).is_empty()
+				if _on_glass:
+					_point(event.position)
 			elif _pressed:
 				_pressed = false
-				if not _dragging:
+				if _on_glass:
+					_on_glass = false
+					tank.point_at(null)
+					tank.shine(null)
+				if _offering:
+					_offering = false
+					if tank != null:
+						tank.offer(null)
+				elif not _dragging:
 					_tap(event.position)
 	elif event is InputEventMouseMotion and _pressed:
 		if not _dragging and event.position.distance_to(_press_at) > 10.0:
 			_dragging = true
 		if not _dragging or _touches.size() >= 2:
 			return
-		if tool == "scrub" and tank != null and not _through_tank(event.position).is_empty():
+		if _offering:
+			var held := _through_tank(event.position)
+			if not held.is_empty():
+				tank.offer(held[0])
+		elif _on_glass:
+			_point(event.position)
+		elif tool == "scrub" and tank != null and not _through_tank(event.position).is_empty():
 			tank.scrub(event.relative.length() * 0.0012)
 			if _scrub_sound <= 0.0 and tank.algae > 0.0:
 				_scrub_sound = 0.12
@@ -292,8 +373,8 @@ func _on_pad(event: InputEvent) -> void:
 ## Where a line from the eye through a point on the screen goes into the tank and comes out
 ## again, in the tank's own space (empty when it misses).
 func _through_tank(at: Vector2) -> Array[Vector3]:
-	var from := camera.project_ray_origin(at / PIXEL) - tank.position
-	var dir := camera.project_ray_normal(at / PIXEL)
+	var from := camera.project_ray_origin(_in_view(at)) - tank.position
+	var dir := camera.project_ray_normal(_in_view(at))
 	var box: AABB = tank.inside()
 	var enter: Variant = box.intersects_ray(from, dir)
 	var leave: Variant = box.intersects_ray(from + dir * 60.0, -dir)
@@ -303,10 +384,13 @@ func _through_tank(at: Vector2) -> Array[Vector3]:
 
 
 func _tap(at: Vector2) -> void:
+	if slot == COVERED:
+		_touch_cover()
+		return
 	if tank == null:
 		return
-	var from := camera.project_ray_origin(at / PIXEL) - tank.position
-	var dir := camera.project_ray_normal(at / PIXEL)
+	var from := camera.project_ray_origin(_in_view(at)) - tank.position
+	var dir := camera.project_ray_normal(_in_view(at))
 	var fish: Node = tank.pick_fish(from, dir)
 	if fish != null:
 		if fish.dead:
@@ -328,9 +412,59 @@ func _tap(at: Vector2) -> void:
 			hud.say("Nobody is hungry. Food left on the bottom rots.")
 		tank.drop_food(mid.x, mid.z)
 		Sfx.play("plop", randf_range(0.9, 1.3))
-	else:
+	elif tool == "scrub":
 		tank.tap(through[0])
 		Sfx.play("tap")
+
+
+## Takes up a tool. Taking up the torch when it is already in hand changes it from red to
+## white and back.
+func _pick_tool(picked: String) -> void:
+	if picked == "torch" and tool == "torch":
+		torch_red = not torch_red
+	tool = picked
+	hud.show_torch(torch_red, tool == "torch")
+
+
+## Puts the keeper's finger on the glass where the screen was touched, and tells the tank how
+## fast it is moving (metres a second): slow draws the animals, fast startles them.
+func _point(at: Vector2) -> void:
+	var through := _through_tank(at)
+	if through.is_empty() or tank == null:
+		return
+	var now := Time.get_ticks_msec() * 0.001
+	var speed := 0.0
+	if tank.finger != null and now > _pointed_at:
+		speed = (through[0] - (tank.finger as Vector3)).length() / maxf(now - _pointed_at, 0.01)
+	_pointed_at = now
+	if tool == "torch":
+		tank.shine(through[0], torch_red)
+	else:
+		tank.point_at(through[0], speed)
+
+
+## Whether any tank on the shelf has its lamp on.
+func _any_lamp() -> bool:
+	for t in tanks:
+		if t != null and t.lamp_on:
+			return true
+	return false
+
+
+## The covered tank has been touched. The cloth only comes off with every lamp out.
+func _touch_cover() -> void:
+	if room.is_uncovered():
+		room.uncover(false)
+		return
+	if _any_lamp():
+		hud.say("The note says: NOT IN THE LIGHT. It is not your writing.")
+		Sfx.play("no")
+		return
+	room.uncover(true)
+	var cave: Dictionary = Save.data.get("cave", {})
+	cave["lifted"] = int(cave.get("lifted", 0)) + 1
+	Save.data["cave"] = cave
+	hud.say("Cold water, and one rock." if int(cave.lifted) < 3 else "Cold water, and one rock. The rock is not where it was.")
 
 
 ## Takes a fish in hand (null lets go). The camera follows the fish in hand, and comes in

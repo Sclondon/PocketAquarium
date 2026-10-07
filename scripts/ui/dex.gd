@@ -39,6 +39,6 @@ func refresh() -> void:
 		var line := UiKit.label(Species.LIST[id].blurb if known else Species.hint(id), 14, Color(UiKit.PAPER, 0.8), 0)
 		line.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		line.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		line.custom_minimum_size = Vector2(150, 44)
+		line.custom_minimum_size = Vector2(150, 66)
 		col.add_child(line)
 		grid.add_child(cell)

@@ -7,16 +7,39 @@ const UiKit := preload("res://scripts/ui/ui_kit.gd")
 
 var species := "guppy"
 var known := true
+## The picture of its model, for a kind that has one.
+var _art: TextureRect
 
 
 func _init(id := "guppy", is_known := true, min_size := Vector2(84, 54)) -> void:
-	species = id
-	known = is_known
 	custom_minimum_size = min_size
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_art = TextureRect.new()
+	_art.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	_art.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	_art.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
+	_art.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT, Control.PRESET_MODE_MINSIZE, 4)
+	_art.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(_art)
+	show_kind(id, is_known)
+
+
+## Changes which kind it is a picture of. An animal with a model made in Blender is shown by
+## a picture of that model (tools/build_models.sh); any other is drawn from its `look`.
+func show_kind(id: String, is_known := true) -> void:
+	species = id
+	known = is_known
+	var picture := "res://models/%s_icon.png" % species
+	_art.texture = load(picture) if ResourceLoader.exists(picture) else null
+	_art.modulate = Color.WHITE if known else Color(0.0, 0.0, 0.0, 0.7)
+	queue_redraw()
 
 
 func _draw() -> void:
+	if _art.texture != null:
+		if not known:
+			draw_string(UiKit.serif(), size * 0.5 + Vector2(-6, 9), "?", HORIZONTAL_ALIGNMENT_LEFT, -1, 26, UiKit.PAPER)
+		return
 	var look: Dictionary = Species.LIST[species].look
 	var unit := minf(size.x / 3.1, size.y / 2.7)
 	var mid := size * 0.5 + Vector2(-0.25 * unit, 0.0)

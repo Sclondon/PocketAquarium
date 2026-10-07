@@ -1,20 +1,14 @@
-// Screen post-process for the low-res 3D view: colour quantisation + Bayer dither + vignette.
+// Over the finished 3D picture: the corners darken, and a grain too fine to see breaks up the
+// bands that a dark, smooth fade would otherwise show.
 shader_type canvas_item;
 
-uniform float levels = 40.0;
-// How much of the banded, dithered colour is mixed in (0 leaves the picture smooth).
-uniform float dither = 0.3;
-uniform float vignette = 0.45;
-
-const float BAYER[16] = float[16](0.0, 8.0, 2.0, 10.0, 12.0, 4.0, 14.0, 6.0,
-		3.0, 11.0, 1.0, 9.0, 15.0, 7.0, 13.0, 5.0);
+uniform float vignette = 0.55;
 
 void fragment() {
 	vec4 c = texture(TEXTURE, UV);
-	ivec2 px = ivec2(mod(floor(UV / TEXTURE_PIXEL_SIZE), 4.0));
-	float threshold = BAYER[px.y * 4 + px.x] / 16.0;
-	c.rgb = mix(c.rgb, floor(c.rgb * levels + threshold) / levels, dither);
 	vec2 d = UV - 0.5;
 	c.rgb *= 1.0 - dot(d, d) * vignette * 2.0;
+	float grain = fract(sin(dot(floor(UV / TEXTURE_PIXEL_SIZE), vec2(12.9898, 78.233))) * 43758.5453);
+	c.rgb += (grain - 0.5) / 255.0;
 	COLOR = vec4(c.rgb, 1.0);
 }

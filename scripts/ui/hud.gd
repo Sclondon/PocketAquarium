@@ -19,12 +19,17 @@ signal tank_wanted(kind: String)
 const UiKit := preload("res://scripts/ui/ui_kit.gd")
 const Shop := preload("res://scripts/ui/shop.gd")
 const Dex := preload("res://scripts/ui/dex.gd")
+const Page := preload("res://scripts/ui/page.gd")
 const FishIcon := preload("res://scripts/ui/fish_icon.gd")
 const Tank := preload("res://scripts/tank/tank.gd")
+
+## The size of a button in the row along the bottom: eight of them fit a screen 540 across.
+const KEY := Vector2(62, 50)
 
 var tank
 var shop: Shop
 var dex: Dex
+var page: Page
 
 var _tickets: Label
 var _wallet_note: Label
@@ -32,6 +37,7 @@ var _day: Label
 var _gauges := {}
 var _tools := {}
 var _lamp: Button
+var _lamp_lit := false
 var _water: Button
 var _toast: Label
 var _toast_plate: PanelContainer
@@ -40,6 +46,8 @@ var _card: PanelContainer
 var _card_icon: FishIcon
 var _card_name: Label
 var _card_stage: Label
+var _card_mood: Label
+var _card_bond: Label
 var _card_fed: ProgressBar
 var _card_health: ProgressBar
 var _fish: Node
@@ -120,23 +128,27 @@ func setup() -> void:
 	bar.offset_top = -64
 	bar.offset_bottom = -12
 	bar.alignment = BoxContainer.ALIGNMENT_CENTER
-	bar.add_theme_constant_override("separation", 6)
+	bar.add_theme_constant_override("separation", 5)
 	bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	root.add_child(bar)
-	for tool: String in ["feed", "scrub"]:
-		var b := UiKit.button(tool.to_upper(), pick_tool.bind(tool))
+	for tool: String in ["feed", "hand", "scrub", "torch"]:
+		var b := UiKit.button(tool.to_upper(), pick_tool.bind(tool), KEY)
 		bar.add_child(b)
 		_tools[tool] = b
 		_tank_only.append(b)
-	_lamp = UiKit.button("LAMP", func() -> void: tank.set_lamp(not tank.lamp_on))
+	_lamp = UiKit.button("LAMP", func() -> void: tank.set_lamp(not tank.lamp_on), KEY)
 	bar.add_child(_lamp)
-	_water = UiKit.button("WATER", _change_water)
+	_water = UiKit.button("WATER", _change_water, KEY)
 	bar.add_child(_water)
 	shop = Shop.new()
 	dex = Dex.new()
-	var shop_button := UiKit.button("SHOP", shop.open)
+	page = Page.new()
+	page.give_away.connect(func(fish: Node) -> void: give_away.emit(fish))
+	var shop_button := UiKit.button("SHOP", shop.open, KEY)
 	bar.add_child(shop_button)
-	bar.add_child(UiKit.button("DEX", dex.open))
+	bar.add_child(UiKit.button("DEX", dex.open, KEY))
+	for b in bar.get_children():
+		b.add_theme_font_size_override("font_size", 17)
 	_tank_only.append_array([_lamp, _water, shop_button])
 
 	# up and down the shelf, at the right-hand edge
@@ -154,7 +166,7 @@ func setup() -> void:
 
 	_build_card(root)
 	_build_offer(root)
-	for sheet: Control in [shop, dex]:
+	for sheet: Control in [shop, dex, page]:
 		root.add_child(sheet)
 	pick_tool("feed")
 
@@ -200,15 +212,16 @@ func _show_offer_prices() -> void:
 
 ## Turns the HUD to a slot of the shelf: its tank (null for an empty slot, which gets the
 ## offer of one instead of the tools).
-func show_slot(in_tank, at: int, slots: int) -> void:
+func show_slot(in_tank, at: int, slots: int, for_sale := true) -> void:
 	tank = in_tank
 	shop.tank = tank
 	dex.tank = tank
 	shop.close()
+	page.close()
 	for c in _tank_only:
 		c.visible = tank != null
 	_water_plate.visible = tank != null
-	_offer.visible = tank == null
+	_offer.visible = tank == null and for_sale
 	_up.disabled = at >= slots - 1
 	_down.disabled = at <= 0
 	_show_offer_prices()
@@ -234,6 +247,13 @@ func _build_card(root: Control) -> void:
 	col.add_child(_card_name)
 	_card_stage = UiKit.label("", 15, Color(UiKit.PAPER, 0.8), 0)
 	col.add_child(_card_stage)
+	# who it is: its temper and what it is about, then how it stands with you and the others
+	_card_mood = UiKit.label("", 15, UiKit.TEAL, 0)
+	col.add_child(_card_mood)
+	_card_bond = UiKit.label("", 14, Color(UiKit.PAPER, 0.8), 0)
+	_card_bond.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_card_bond.custom_minimum_size.x = 210
+	col.add_child(_card_bond)
 	var grid := GridContainer.new()
 	grid.columns = 2
 	grid.add_theme_constant_override("h_separation", 8)
@@ -252,7 +272,7 @@ func _build_card(root: Control) -> void:
 	buttons.add_child(steps)
 	steps.add_child(UiKit.button("<", func() -> void: next_fish.emit(-1), Vector2(58, 34)))
 	steps.add_child(UiKit.button(">", func() -> void: next_fish.emit(1), Vector2(58, 34)))
-	buttons.add_child(UiKit.button("GIVE AWAY", func() -> void: give_away.emit(_fish), Vector2(120, 34)))
+	buttons.add_child(UiKit.button("ITS PAGE", func() -> void: page.show_page(_fish), Vector2(120, 34)))
 	buttons.add_child(UiKit.button("CLOSE", func() -> void: card_closed.emit(), Vector2(120, 34)))
 
 
@@ -264,7 +284,10 @@ func _process(_delta: float) -> void:
 	_set_gauge("clean", 1.0 - tank.waste)
 	_set_gauge("glass", 1.0 - tank.algae)
 	_set_gauge("room", 1.0 - tank.crowd() / tank.capacity())
-	_lamp.text = "LAMP ON" if tank.lamp_on else "LAMP OFF"
+	# (the lamp's button is lit while the lamp is)
+	if _lamp_lit != tank.lamp_on:
+		_lamp_lit = tank.lamp_on
+		UiKit.hold(_lamp, _lamp_lit)
 	_water.disabled = not tank.can_change_water()
 	if tank.can_change_water():
 		_water.text = "WATER"
@@ -277,6 +300,9 @@ func _process(_delta: float) -> void:
 		_card_fed.value = 1.0 - _fish.hunger
 		_card_health.value = _fish.health
 		_card_stage.text = "%s %s, %s" % [_fish.stage(), _fish.info().name, _fish.appetite()]
+		_card_mood.text = "%s, %s" % [_fish.buddy.temper.capitalize(), _fish.mood()]
+		var company: String = _fish.company()
+		_card_bond.text = _fish.buddy.regard() + (". " + company if company != "" else "")
 
 
 ## A gauge turns red when it is low enough to be doing harm.
@@ -286,13 +312,15 @@ func _set_gauge(id: String, value: float) -> void:
 	b.modulate = Color(1.0, 0.45, 0.4) if value < 0.3 and id != "room" else Color.WHITE
 
 
+## Says on the torch's button which torch it is: taking it up again changes it.
+func show_torch(red: bool, in_hand: bool) -> void:
+	(_tools["torch"] as Button).text = ("RED" if red else "WHITE") if in_hand else "TORCH"
+
+
 func pick_tool(tool: String) -> void:
 	for id: String in _tools:
 		var b: Button = _tools[id]
-		if id == tool:
-			b.add_theme_stylebox_override("normal", UiKit.card(UiKit.GOLD, UiKit.INK, 3, 8))
-		else:
-			b.remove_theme_stylebox_override("normal")
+		UiKit.hold(b, id == tool)
 	tool_picked.emit(tool)
 
 
@@ -301,8 +329,7 @@ func show_fish(fish: Node) -> void:
 	_fish = fish
 	_card.visible = fish != null
 	if fish != null:
-		_card_icon.species = fish.species
-		_card_icon.queue_redraw()
+		_card_icon.show_kind(fish.species)
 		_card_name.text = fish.fish_name
 
 
@@ -318,7 +345,7 @@ func say(text: String) -> void:
 
 
 func is_sheet_open() -> bool:
-	return shop.visible or dex.visible
+	return shop.visible or dex.visible or page.visible
 
 
 func _show_tickets() -> void:

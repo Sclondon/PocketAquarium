@@ -13,6 +13,9 @@ wide screen or a tall one.
 | | Mouse | Touch |
 |---|---|---|
 | Feed (FEED tool) | Click in the water | Tap in the water |
+| Say hello (HAND tool) | Hold on the glass: fish that know you, and curious ones, come to your finger; shy and new ones hide. Move it fast and they bolt | The same |
+| Hand feed (FEED tool) | Hold still on the glass: a pinch is held out there, and fish that are used to you take it from your fingers | The same |
+| Look in the dark (TORCH tool) | Hold on the glass to shine it in. Pick TORCH again to change it: RED, which the fish cannot see, or WHITE, which sends them into hiding | The same |
 | Scrub algae (SCRUB tool) | Drag across the glass | Drag across the glass |
 | Tap the glass (SCRUB tool) | Click the glass: nearby fish bolt | Tap the glass |
 | Follow a fish | Click it: the camera goes with it, and can come right up to it | Tap it |
@@ -21,17 +24,29 @@ wide screen or a tall one.
 | Net out a dead fish | Click it | Tap it |
 | Turn the tank, or turn about the fish being followed | Drag (anywhere, with FEED) | Drag |
 | Zoom | Wheel | Pinch |
-| Look at the shelf above or below | UP and DOWN, at the right | The same |
+| Look at the shelf above or below | UP and DOWN, at the right. Above the top shelf is the covered tank | The same |
+| The covered tank | Click it. The cloth comes off only with every lamp out | Tap it |
 | Put a tank on an empty shelf | The price buttons on the plate over it | The same |
 
-Along the bottom: FEED and SCRUB pick the tool, LAMP turns the light on and off, WATER changes
+Along the bottom: FEED, HAND, SCRUB and TORCH pick the tool, LAMP turns the light on and off, WATER changes
 the water (once every six hours), SHOP and DEX open their sheets.
 
 The tank keeps real time, like a real one. It goes on while the game is shut: the save holds
 the time it was written, and the next visit catches up on the time away (up to 30 days) and
 says what happened. A visit is a minute or two: feed them, look at the water, see who is new.
 
-There are four ways to play it, and they all run at once:
+There are five ways to play it, and they all run at once:
+
+- **Company.** Every fish is itself: it has a name (yours to change, on its page), a temper
+  (bold, shy, greedy, curious, grumpy or dozy), a part of the tank it likes, and a bond with
+  you that grows with visits, meals and time at your finger, and cools if you stay away. The
+  bond is never shown as a number: a fish that does not know you keeps its distance, and one
+  that does comes to the glass when you arrive, follows your finger and eats from your hand.
+  The fish have each other too. Some pairs take to each other and swim together, a few fall
+  out, shoaling kinds keep together and sulk alone, and a grumpy one sees the rest off its
+  patch. Some kinds have ways of their own: kuhli loaches lie buried till the lamp is off,
+  hatchetfish keep to the surface, sparkling gouramis croak. A new game starts with the
+  last keeper's fish, which have names already and do not know you.
 
 - **A pet.** Fish want feeding about once a day. A fish is full for half a day after a meal
   and will not eat; a day after, it is hungry; after nearly three days unfed it is starving,
@@ -44,7 +59,7 @@ There are four ways to play it, and they all run at once:
   life is sized to fit (a blue whale is about a metre long, in a tank two to four metres wide)
   and otherwise lives by the same rules as the fish: it eats the same food, and two of a kind
   may breed.
-- **A collection.** Seven kinds of fresh water fish and seven of sea life are sold. Eleven more can only be bred, and breeding
+- **A collection.** Eleven kinds of fresh water fish and seven of sea life are sold. Eleven more can only be bred, and breeding
   is uncommon: a tank with two well-fed, healthy adults, good water and room to spare (no more
   than seven tenths full, counting fry as grown) lays an egg about every three days, the egg
   takes a day to hatch, and both parents then wait four days. Two of the same kind have another; the right two different kinds have something new
@@ -86,22 +101,24 @@ PRACTICE TICKETS. Add `?tickets=500` to the address (or run with `-- --tickets=5
 
 | Path | What |
 |---|---|
-| `scripts/main.gd` | the frame: low-res render target, the shelf's three slots, camera, what a tap or drag does, saving |
+| `scripts/main.gd` | the frame: the 3D picture (as sharp as the window, up to 1600 pixels on its longest side), the shelf's three slots, camera, what a tap or drag does, saving |
 | `scripts/tank/tank.gd` | the tank: its meshes, the water, food, eggs, breeding, snails and shrimps |
 | `scripts/tank/room.gd` | the room: a shelf unit with a slot for each of three tanks (only the middle one is used yet), the wall, the room's own dim light |
 | `scripts/tank/fish.gd` | one fish: swimming, hunger, health, growing |
 | `scripts/tank/species.gd` | every kind of fish, what each looks like and which pairs make which |
 | `scripts/tank/fish_mesh.gd` | builds an animal's model from its `look`: smooth-skinned fish (and sharks and whales), squid and jellyfish |
+| `scripts/tank/models.gd`, `models/`, `art/` | the animals that have a model made in Blender: each is a script in `art/blender/` (they share `fishkit.py`, whose top says what every model must keep to), built by `tools/build_models.sh` into `art/generated/` with a turnaround sheet to look over, and copied to `models/` for the game. A model reworked by hand goes in `art/hand/` and is used instead. Only the betta has one yet |
+| `scripts/sim/` | the rules with no pictures attached, so tests can run years of them: the water (`water.gd`) and one animal's hunger, health and growth (`life.gd`) |
 | `scripts/tank/props.gd` | plants, rocks, ornaments, gear and the small things |
 | `scripts/ui/` | the HUD, the shop and fish-dex sheets, the flat fish pictures, the UI kit |
-| `scripts/autoload/` | the save (`user://aquarium.json`), tickets, and sound effects (synthesized at start) |
-| `shaders/` | the animals' banded, painted-model shading and their swimming, the sand, a light PS1 vertex snap, the water (the glass with its algae, the far end with its shafts of light, the surface, and the net of light on everything under it), dither post-process |
+| `scripts/autoload/` | the save (`user://aquarium.json`, versioned: an older file is backed up to `aquarium.v1.json` and brought up to date), tickets, and sound effects (synthesized at start) |
+| `shaders/` | the cel look: two flat tones of light with a coloured shadow (`water_common.gdshaderinc`), the animals and their swimming (`fish.gdshader`, `swim.gdshaderinc`), the ink line round them (`outline.gdshader`), the sand, the water (the glass with its algae, the far end with its shafts of light, the surface, and the net of light on everything under it), and a vignette over the finished picture |
 
 Adding an animal is one entry in `Species.LIST` (and its id in `ORDER`); give it a `price` to
 sell it or a line in `CROSSES` to breed it, and a `water` of "sea" if it lives in salt water.
 What its `look` can say is listed at the top of `fish_mesh.gd`. The numbers that set how hard the tank is to keep
-are the constants at the top of `fish.gd` and `tank.gd` (all in seconds of real time), and the
-arithmetic in `Tank._step_water`.
+are the constants at the top of `sim/life.gd` and `tank.gd` (all in seconds of real time), and the
+arithmetic in `sim/water.gd`.
 
 ## Tests and builds
 
@@ -113,6 +130,12 @@ godot --headless --path . --export-release "Web" build/index.html
 ```
 
 `--no-save` starts from a new tank and writes nothing, so tests leave the real one alone.
+`--seed=7` (any number) makes everything left to chance fall out the same way each run.
+
+`tools/check.sh` is what to run before a release: it keeps the tanks for months with a fixed
+seed and compares how they went with `tests/smoke_seed7.txt`, loads saves from the first game
+to see that no fish is lost, and builds the Blender models. If the rules were changed on
+purpose, read the difference it prints and then run `tools/check.sh --accept`.
 
 The web build in `build/` is served by GitHub Pages at
 <https://sclondon.github.io/PocketAquarium/build/>. In the arcade it is a secret cart, on the

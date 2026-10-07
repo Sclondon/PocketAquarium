@@ -55,7 +55,7 @@ func _smoke() -> void:
 	while day < 30 and _living(tank) > 0:
 		tank.elapse(86400.0)
 		day += 1
-	print("smoke: left alone, the last of 2 guppies died on day %d; waste %.2f, algae %.2f" % [day, tank.waste, tank.algae])
+	print("smoke: left alone, the last of the fish died on day %d; waste %.2f, algae %.2f" % [day, tank.waste, tank.algae])
 
 	var sea = main.add_tank(2, {"kind": "sea"})
 	sea.grow()
@@ -70,6 +70,25 @@ func _smoke() -> void:
 	_keep(sea, 60)
 	main.save()
 	print("smoke: saved %d tanks, dex %d" % [Save.data.tanks.filter(func(t: Variant) -> bool: return t != null).size(), main.dex.size()])
+
+	# saves from the first game, in both the shapes it wrote, come up to date and load with
+	# every fish they had
+	for was: Dictionary in [
+			{"tank": {"fish": [{"species": "guppy"}, {"species": "betta"}, {"species": "aurora_koi"}]}, "dex": ["guppy"], "wallet": 40},
+			{"tanks": [null, {"fish": [{"species": "tetra"}, {"species": "puffer"}], "snails": 2},
+					{"kind": "sea", "fish": [{"species": "orca"}, {"species": "blue_whale"}]}], "dex": ["tetra", "orca"]}]:
+		var had := 0
+		for t: Variant in was.get("tanks", [was.get("tank")]):
+			had += (t.fish as Array).size() if t is Dictionary else 0
+		var now: Dictionary = Save.upgrade(was.duplicate(true))
+		var have := 0
+		for i in now.tanks.size():
+			if now.tanks[i] is Dictionary:
+				var t = main.tanks[i] if main.tanks[i] != null else main.add_tank(i, {})
+				t.load_state(now.tanks[i])
+				have += t.fish.size()
+		print("smoke: an old save came up to version %d: %d of %d fish loaded, wallet %s" % [now.version, have, had,
+				str(now.get("wallet", "none"))])
 	get_tree().quit()
 
 
@@ -103,6 +122,12 @@ func _keep(tank, days: int) -> void:
 			hunger / maxf(tank.fish.size(), 1.0)])
 	print("smoke:   worst waste %.2f, lowest oxygen %.2f, algae %.2f, crowd %.1f/%.0f, dex %d/%d %s" % [worst_waste, worst_o2,
 			tank.algae, tank.crowd(), tank.capacity(), tank.dex.size(), Species.ORDER.size(), str(tank.dex.keys())])
+	# (two minutes of each day were watched)
+	var passed := 0
+	for kind: String in tank.seen:
+		passed += int(tank.seen[kind])
+	print("smoke:   between the animals, %.1f things a minute watched: %s" % [passed / (days * 2.0), str(tank.seen)])
+	tank.seen.clear()
 
 
 func _living(tank) -> int:
@@ -128,6 +153,9 @@ func _shots() -> void:
 	tank.add_critter("shrimp")
 	for id: String in ["tetra", "goldfish", "angelfish", "betta", "clownfish", "puffer", "aurora_koi", "moonfish"]:
 		tank.add_fish(id)
+	for id: String in ["kuhli", "kuhli", "kuhli", "glass_catfish", "glass_catfish", "glass_catfish", "hatchetfish", "hatchetfish",
+			"hatchetfish", "sparkling_gourami", "sparkling_gourami"]:
+		tank.add_fish(id)
 	for f in tank.fish:
 		f.growth = 1.0
 	tank.drop_food(0.2, 0.0)
@@ -135,6 +163,30 @@ func _shots() -> void:
 		tank.step(0.1)
 	await _settle(2.0)
 	await _shot("2_full_tank")
+	# a finger on the glass, with fish that know the keeper well and one that does not
+	for f in tank.fish:
+		f.buddy.bond = 0.9
+	tank.fish[0].buddy.bond = 0.0
+	tank.fish[0].buddy.temper = "shy"
+	tank.point_at(Vector3(0.7, 1.0, tank.depth * 0.5))
+	await _settle(4.0)
+	await _shot("2b_at_the_finger")
+	tank.point_at(null)
+	# a pinch of food held out at the glass, and then one fish's own page
+	for f in tank.fish:
+		f.hunger = 0.5
+	tank.offer(Vector3(-0.5, 0.9, tank.depth * 0.5))
+	await _settle(3.0)
+	await _shot("2d_from_the_hand")
+	tank.offer(null)
+	main.hud.page.show_page(tank.fish[2])
+	await _settle(0.5)
+	await _shot("2e_its_page")
+	main.hud.page.close()
+	tank.greet()
+	await _settle(3.5)
+	await _shot("2c_saying_hello")
+	await _settle(5.0)
 	main.call("_select", tank.fish[3])
 	tank.algae = 0.6
 	tank.waste = 0.8
@@ -178,10 +230,46 @@ func _shots() -> void:
 	main.look_at_slot(0)
 	await _settle(1.5)
 	await _shot("6c_empty_shelf")
+	# the top of the unit: the covered tank, touched in the light, and then with every lamp out
+	main.look_at_slot(3)
+	await _settle(2.0)
+	main.call("_touch_cover")
+	await _settle(0.5)
+	await _shot("6h_covered_tank")
+	tank.set_lamp(false)
+	sea.set_lamp(false)
+	await _settle(1.5)
+	main.call("_touch_cover")
+	await _settle(1.0)
+	await _shot("6i_uncovered")
+	tank.set_lamp(true)
+	sea.set_lamp(true)
+	await _settle(1.0)
 	main.look_at_slot(1)
 	main.call("_select", tank.fish[4])
 	await _settle(1.5)
 	await _shot("6d_fresh_close")
+	for kind: String in ["betta", "glass_catfish", "hatchetfish", "sparkling_gourami", "kuhli"]:
+		if kind == "kuhli":
+			tank.set_lamp(false)
+			await _settle(6.0)
+		for f in tank.fish:
+			if f.species == kind:
+				main.call("_select", f)
+				break
+		await _settle(2.0)
+		await _shot("6e_%s" % kind)
+	# the night watch: the whole tank in the dark, by red torch and then by white
+	main.call("_select", null)
+	await _settle(1.5)
+	tank.shine(Vector3(-0.4, 0.5, tank.depth * 0.5), true)
+	await _settle(2.5)
+	await _shot("6f_red_torch")
+	tank.shine(Vector3(-0.4, 0.5, tank.depth * 0.5), false)
+	await _settle(2.5)
+	await _shot("6g_white_torch")
+	tank.shine(null)
+	tank.set_lamp(true)
 	main.call("_select", null)
 	get_window().size = Vector2i(540, 960)
 	await _settle(1.0)

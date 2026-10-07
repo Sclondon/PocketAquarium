@@ -11,6 +11,7 @@ extends RefCounted
 
 ## The order they are listed in, in the shop and the fish-dex.
 const ORDER := ["guppy", "tetra", "goldfish", "angelfish", "betta", "clownfish", "puffer",
+		"kuhli", "glass_catfish", "hatchetfish", "sparkling_gourami",
 		"glow_guppy", "sunset_fantail", "electric_angel", "royal_veiltail", "midnight_betta",
 		"harlequin", "tangerine", "bumblepuff", "aurora_koi", "ghost_angel", "moonfish",
 		"jellyfish", "salmon", "tuna", "shark", "orca", "giant_squid", "blue_whale"]
@@ -62,6 +63,26 @@ const LIST := {
 		"look": {"back": Color(0.6, 0.55, 0.2), "side": Color(0.85, 0.8, 0.35), "belly": Color(0.98, 0.96, 0.85),
 			"fin": Color(0.9, 0.8, 0.4), "tall": 1.2, "wide": 1.7, "len": 0.7, "tail_len": 0.35, "spread": 0.7, "fork": 0.0,
 			"dorsal": 0.12, "eye": 1.7, "spots": 0.8, "spot": Color(0.3, 0.25, 0.08)},
+	},
+	"kuhli": {
+		"name": "Kuhli Loach", "blurb": "Buried all day. After dark, a knot of them comes out to rummage.",
+		"price": 45, "size": 0.75, "load": 0.4, "speed": 1.0, "habits": {"night": true, "level": "bottom", "wag": 0.26},
+		"look": {"back": Color(0.2, 0.1, 0.07), "side": Color(0.95, 0.62, 0.42), "belly": Color(0.98, 0.82, 0.68), "fin": Color(0.86, 0.7, 0.52)},
+	},
+	"glass_catfish": {
+		"name": "Glass Catfish", "blurb": "You can see right through it, spine and all. Wastes away without a shoal.",
+		"price": 60, "size": 0.85, "load": 0.5, "speed": 0.8, "habits": {"level": "middle", "wag": 0.07},
+		"look": {"back": Color(0.55, 0.66, 0.72), "side": Color(0.62, 0.8, 0.86), "belly": Color(0.86, 0.9, 0.94), "fin": Color(0.7, 0.86, 0.92)},
+	},
+	"hatchetfish": {
+		"name": "Marbled Hatchetfish", "blurb": "Hangs just under the surface, waiting for something to fall in.",
+		"price": 70, "size": 0.6, "load": 0.4, "speed": 1.1, "habits": {"level": "top"},
+		"look": {"back": Color(0.34, 0.3, 0.2), "side": Color(0.86, 0.87, 0.84), "belly": Color(0.86, 0.87, 0.84), "fin": Color(0.8, 0.82, 0.78)},
+	},
+	"sparkling_gourami": {
+		"name": "Sparkling Gourami", "blurb": "Thumb-sized and spangled. Two of them together will croak at each other.",
+		"price": 90, "size": 0.6, "load": 0.4, "speed": 0.7, "habits": {"croaks": true},
+		"look": {"back": Color(0.42, 0.3, 0.18), "side": Color(0.72, 0.56, 0.36), "belly": Color(0.9, 0.8, 0.62), "fin": Color(0.85, 0.22, 0.16)},
 	},
 	"glow_guppy": {
 		"name": "Glow Guppy", "blurb": "A guppy that took the tetra's stripe and ran with it.",
@@ -239,3 +260,24 @@ static func hint(id: String) -> String:
 		if CROSSES[key] == id:
 			return "A %s might have one, with the right company." % LIST[key.get_slice("+", 0)].name
 	return "Now and then an egg hatches into something else."
+
+
+## The kinds that keep together in a shoal, and sulk without their own kind.
+const SHOALS := ["tetra", "guppy", "glow_guppy", "salmon", "tuna", "glass_catfish", "hatchetfish", "kuhli"]
+## The kinds that keep a patch of the tank to themselves, whatever their temper.
+const GUARDS := ["betta", "midnight_betta", "clownfish", "shark"]
+
+
+## One of a kind's ways (`habits` in its entry): `night` for one that hides by day and comes out
+## in the dark; `level`, "top", "middle" or "bottom", for one that keeps to a part of the water;
+## `wag`, how far it bends as it swims; `croaks` for one that calls to its own kind.
+static func habit(id: String, what: String, otherwise: Variant = false) -> Variant:
+	return (LIST[id].get("habits", {}) as Dictionary).get(what, otherwise)
+
+
+static func shoals(id: String) -> bool:
+	return id in SHOALS
+
+
+static func guards(id: String) -> bool:
+	return id in GUARDS

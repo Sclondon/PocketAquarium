@@ -63,10 +63,14 @@ class Hide:
 	var normals := PackedVector3Array()
 	var colors := PackedColorArray()
 	var uvs := PackedVector2Array()
+	## For each vertex of a fin, the way out from its root in the fin's own plane (zero for
+	## everything else): outline.gdshader pushes the ink line out along it.
+	var outs := PackedFloat32Array()
 	var indices := PackedInt32Array()
 
-	func point(at: Vector3, col: Color, uv := Vector2.ZERO) -> int:
+	func point(at: Vector3, col: Color, uv := Vector2.ZERO, out := Vector3.ZERO) -> int:
 		verts.append(at)
+		outs.append_array([out.x, out.y, out.z])
 		normals.append(Vector3.ZERO)
 		colors.append(col)
 		uvs.append(uv)
@@ -94,9 +98,22 @@ class Hide:
 	## A flat fan of triangles (a fin) from `root` round `rim`, in its own vertices.
 	func fan(root: Vector3, rim: Array[Vector3], col: Color, tip: Color, out: Vector3) -> void:
 		var r := point(root, col, Vector2(0.0, 2.0))
+		# (the way out at each point of the rim is square to the edge there, in the fin's plane;
+		# at the two ends it leans away from the fin as well, so the sides get a line too)
+		var flat := (rim[1] - root).cross(rim[0] - root).normalized()
+		var last := rim.size() - 1
 		var before := -1
-		for at in rim:
-			var now := point(at, tip, Vector2(1.0, 2.0))
+		for i in rim.size():
+			var at := rim[i]
+			var way := (rim[mini(i + 1, last)] - rim[maxi(i - 1, 0)]).cross(flat).normalized()
+			if way.dot(at - root) < 0.0:
+				way = -way
+			if i == 0 or i == last:
+				var side := (at - root).cross(flat).normalized()
+				if side.dot(at - rim[1 if i == 0 else last - 1]) < 0.0:
+					side = -side
+				way = (way + side).normalized()
+			var now := point(at, tip, Vector2(1.0, 2.0), way)
 			if before >= 0:
 				tri(r, before, now, out)
 			before = now
@@ -152,9 +169,11 @@ class Hide:
 		arrays[Mesh.ARRAY_NORMAL] = normals
 		arrays[Mesh.ARRAY_COLOR] = colors
 		arrays[Mesh.ARRAY_TEX_UV] = uvs
+		arrays[Mesh.ARRAY_CUSTOM0] = outs
 		arrays[Mesh.ARRAY_INDEX] = indices
 		var mesh := ArrayMesh.new()
-		mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+		mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays, [], {},
+				Mesh.ARRAY_CUSTOM_RGB_FLOAT << Mesh.ARRAY_FORMAT_CUSTOM0_SHIFT)
 		return mesh
 
 
@@ -196,11 +215,11 @@ static func _fish(skin: Hide, look: Dictionary) -> void:
 			var col := side
 			if banded:
 				col = bar
-			elif up > 0.0:
-				col = side.lerp(back, smoothstep(0.1, 0.7, up))
-				col = col.lerp(head, smoothstep(0.22, 0.05, t) * 0.8)
-			else:
-				col = side.lerp(belly, smoothstep(-0.1, -0.7, up))
+			# (three flat bands, back, side and belly, meeting at an edge: no fade between them)
+			elif up > 0.5:
+				col = head if t < 0.12 else back
+			elif up < -0.55:
+				col = belly
 			row.append(skin.point(Vector3(sin(a) * hw, yc + up * hh, z), col, Vector2(t, (1.0 - up) * 0.5)))
 		rows.append(row)
 	for s in STATIONS - 1:

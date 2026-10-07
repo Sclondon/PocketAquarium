@@ -19,15 +19,19 @@ const FRONT := 1.15
 const BACK := 1.25
 ## The y of the floor of each slot: where a tank's base stands.
 const SLOTS := [-SLOT_GAP, 0.0, SLOT_GAP]
+## The y of the top of the unit, where the covered tank stands.
+const TOP := 2.0 * SLOT_GAP - 0.1
 
-const WOOD := Color(0.42, 0.26, 0.15)
-const WALL := Color(0.2, 0.33, 0.36)
-const NIGHT := Color(0.035, 0.045, 0.08)
+const WOOD := Color(0.26, 0.2, 0.2)
+const WALL := Color(0.13, 0.17, 0.26)
+const NIGHT := Color(0.012, 0.014, 0.035)
 
 var _mat: ShaderMaterial
 var _env: Environment
 var _key: DirectionalLight3D
 var _odds: MeshInstance3D
+var _cloth: MeshInstance3D
+var _cave: MeshInstance3D
 var _dressed_for := ""
 
 
@@ -38,14 +42,14 @@ func _ready() -> void:
 	_env.background_mode = Environment.BG_COLOR
 	_env.background_color = NIGHT
 	_env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	_env.ambient_light_color = Color(0.5, 0.58, 0.85)
+	_env.ambient_light_color = Color(0.3, 0.34, 0.75)
 	var we := WorldEnvironment.new()
 	we.environment = _env
 	add_child(we)
-	# a little warm light from the room, low and from one side
+	# the moon through the window, low and from one side: barely there
 	_key = DirectionalLight3D.new()
 	_key.rotation = Vector3(-0.5, 0.7, 0.0)
-	_key.light_color = Color(1.0, 0.82, 0.6)
+	_key.light_color = Color(0.55, 0.65, 1.0)
 	add_child(_key)
 	set_lamp(1.0)
 
@@ -93,6 +97,7 @@ func _ready() -> void:
 	_odds = MeshInstance3D.new()
 	_odds.material_override = _mat
 	add_child(_odds)
+	_covered_tank()
 
 
 ## Puts the odds and ends on the shelves where the tanks leave room for them. `widths` is how
@@ -124,10 +129,11 @@ func dress(widths: Array[float]) -> void:
 	_odds.mesh = mb.build()
 
 
-## How bright the tank's lamp is (0 to 1): with it off the room is all but dark.
+## How bright the tanks' lamps are (0 to 1). The room has next to no light of its own: what
+## shows of it is what the lamps spill onto the shelf.
 func set_lamp(amount: float) -> void:
-	_env.ambient_light_energy = lerpf(0.3, 0.8, amount)
-	_key.light_energy = lerpf(0.15, 0.9, amount)
+	_env.ambient_light_energy = lerpf(0.05, 0.11, amount)
+	_key.light_energy = 0.07
 
 
 func _window(mb: MB, at: Vector3) -> void:
@@ -158,3 +164,64 @@ func _picture(mb: MB, at: Vector3) -> void:
 	var c := paper + Vector3(-0.05, 0.0, 0.005)
 	mb.quad(c + Vector3(-0.35, 0.0, 0.0), c + Vector3(0.0, -0.17, 0.0), c + Vector3(0.25, 0.0, 0.0), c + Vector3(0.0, 0.17, 0.0), ink, Vector3.BACK)
 	mb.tri(c + Vector3(0.22, 0.0, 0.0), c + Vector3(0.45, 0.16, 0.0), c + Vector3(0.45, -0.16, 0.0), ink, Vector3.BACK)
+
+
+# ------------------------------------------------------------------ the covered tank
+
+## Builds the tank on top of the unit that was there before the keeper was: under a cloth, with
+## a note pinned to it. The cloth and what is under it are separate, so the cloth can come off.
+func _covered_tank() -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 5
+	var at := Vector3(0.0, TOP, -0.2)
+	var size := Vector3(1.7, 1.0, 0.9)
+	# what is under the cloth: a bare tank of dark water, and one rock
+	var mb := MB.new()
+	for sx: float in [-1.0, 1.0]:
+		for sz: float in [-1.0, 1.0]:
+			Props.box(mb, at + Vector3(sx * size.x * 0.5, size.y * 0.5, sz * size.z * 0.5), Vector3(0.05, size.y, 0.05), Color(0.3, 0.32, 0.4))
+	Props.box(mb, at + Vector3(0.0, 0.03, 0.0), Vector3(size.x + 0.04, 0.06, size.z + 0.04), Color(0.3, 0.32, 0.4))
+	Props.box(mb, at + Vector3(0.0, 0.45, 0.0), Vector3(size.x - 0.05, 0.78, size.z - 0.05), Color(0.05, 0.1, 0.16))
+	Props.rock(mb, at + Vector3(0.25, 0.84, size.z * 0.5 - 0.12), 0.16, rng)
+	_cave = MeshInstance3D.new()
+	_cave.mesh = mb.build()
+	_cave.material_override = _mat
+	add_child(_cave)
+	# the cloth: a box a little bigger than the tank, with a hem that hangs unevenly, and the note
+	var cloth := MB.new()
+	var fabric := Color(0.34, 0.3, 0.42)
+	Props.box(cloth, at + Vector3(0.0, size.y * 0.5 + 0.03, 0.0), size + Vector3(0.08, 0.06, 0.08), fabric, rng, 0.012)
+	for i in 9:
+		var x := lerpf(-size.x * 0.5, size.x * 0.5, i / 8.0)
+		var drop := 0.05 + 0.06 * absf(sin(i * 1.9))
+		cloth.quad(at + Vector3(x - 0.11, 0.0, size.z * 0.5 + 0.05), at + Vector3(x + 0.11, 0.0, size.z * 0.5 + 0.05),
+				at + Vector3(x + 0.1, -drop, size.z * 0.5 + 0.06), at + Vector3(x - 0.1, -drop * 0.7, size.z * 0.5 + 0.06),
+				Props.shade(fabric, 0.8 + 0.25 * (i % 2)), Vector3.BACK)
+	var pin := at + Vector3(-0.35, 0.62, size.z * 0.5 + 0.05)
+	cloth.quad(pin + Vector3(-0.13, -0.09, 0.0), pin + Vector3(0.13, -0.1, 0.0), pin + Vector3(0.14, 0.09, 0.0), pin + Vector3(-0.12, 0.1, 0.0),
+			Color(0.8, 0.76, 0.62), Vector3.BACK)
+	for line in 3:
+		var y := 0.045 - line * 0.04
+		cloth.quad(pin + Vector3(-0.09, y - 0.006, 0.002), pin + Vector3(0.09 - line * 0.03, y - 0.008, 0.002),
+				pin + Vector3(0.09 - line * 0.03, y + 0.004, 0.002), pin + Vector3(-0.09, y + 0.006, 0.002), Color(0.15, 0.13, 0.2), Vector3.BACK)
+	_cloth = MeshInstance3D.new()
+	_cloth.mesh = cloth.build()
+	_cloth.material_override = _mat
+	add_child(_cloth)
+	# a little of the moon reaches it, and nothing else does
+	var moon := OmniLight3D.new()
+	moon.light_color = Color(0.5, 0.62, 1.0)
+	moon.light_energy = 2.2
+	moon.omni_range = 7.0
+	moon.omni_attenuation = 0.5
+	moon.position = at + Vector3(-1.1, 1.0, 1.5)
+	add_child(moon)
+
+
+## Takes the cloth off the covered tank, or puts it back.
+func uncover(off: bool) -> void:
+	_cloth.visible = not off
+
+
+func is_uncovered() -> bool:
+	return not _cloth.visible
