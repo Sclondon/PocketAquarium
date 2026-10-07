@@ -45,9 +45,5 @@ renderer/rendering_method.mobile="gl_compatibility"
 
 psx_wobble={
 "type": "float",
-"value": 0.3
-}
-tank_lamp={
-"type": "float",
-"value": 1.0
+"value": 0.12
 }

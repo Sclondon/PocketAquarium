@@ -27,6 +27,10 @@ func _draw() -> void:
 	var side: Color = look.side if known else dark
 	var back: Color = look.back if known else dark
 	var belly: Color = look.belly if known else dark
+	var plan: String = look.get("plan", "fish")
+	if plan != "fish":
+		_draw_soft(plan, unit, back, belly, look.get("tip", fin) if known else dark)
+		return
 
 	# tail, then the fins, then the body over their roots (the fish faces left)
 	var root := mid + Vector2(half_len * 0.85, 0.0)
@@ -73,3 +77,35 @@ func _draw() -> void:
 	else:
 		var f := UiKit.serif()
 		draw_string(f, mid + Vector2(-6, 9), "?", HORIZONTAL_ALIGNMENT_LEFT, -1, 26, UiKit.PAPER)
+
+
+## A squid (pointing left, arms trailing) or a jellyfish, in a few flat shapes.
+func _draw_soft(plan: String, unit: float, body: Color, pale: Color, tip: Color) -> void:
+	var mid := size * 0.5
+	if plan == "jelly":
+		var bell := PackedVector2Array()
+		for i in 11:
+			var a := PI * i / 10.0
+			bell.append(mid + Vector2(-cos(a) * unit * 0.8, -sin(a) * unit * 0.7 - unit * 0.1))
+		for i in 6:
+			var x := lerpf(-0.65, 0.65, i / 5.0) * unit
+			draw_line(mid + Vector2(x, -unit * 0.1), mid + Vector2(x * 1.15, unit * (0.75 + 0.25 * (i % 2))), tip, 2.0)
+		draw_colored_polygon(bell, body)
+	else:
+		for i in 5:
+			var y := lerpf(-0.25, 0.25, i / 4.0) * unit
+			draw_line(mid + Vector2(unit * 0.35, y * 0.6), mid + Vector2(unit * (1.25 if i != 2 else 1.6), y * 1.6), tip, 2.0)
+		draw_colored_polygon(PackedVector2Array([mid + Vector2(-unit * 1.45, 0.0), mid + Vector2(-unit * 0.95, -unit * 0.5),
+				mid + Vector2(-unit * 0.6, 0.0), mid + Vector2(-unit * 0.95, unit * 0.5)]), tip)
+		var mantle := PackedVector2Array()
+		for i in 16:
+			var a := TAU * i / 16.0
+			mantle.append(mid + Vector2(-unit * 0.45 + cos(a) * unit * 0.95, sin(a) * unit * 0.3))
+		draw_colored_polygon(mantle, body)
+		if known:
+			draw_circle(mid + Vector2(unit * 0.25, -unit * 0.05), unit * 0.12, Color(0.98, 0.93, 0.72))
+			draw_circle(mid + Vector2(unit * 0.25, -unit * 0.05), unit * 0.06, UiKit.INK)
+	if not known:
+		draw_string(UiKit.serif(), mid + Vector2(-6, 9), "?", HORIZONTAL_ALIGNMENT_LEFT, -1, 26, UiKit.PAPER)
+	elif plan == "jelly":
+		draw_circle(mid + Vector2(-unit * 0.2, -unit * 0.45), unit * 0.12, pale)

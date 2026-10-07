@@ -35,6 +35,6 @@ void fragment() {
 	EMISSION = col * glow * 1.6;
 	if (wet > 0.0) {
 		float net = caustic(v_world.xz * 0.8 + v_world.y * 0.2, TIME * 0.6);
-		EMISSION += col * (0.3 + min(net, 1.5) * 1.3 * (0.2 + 0.8 * max(v_up, 0.0))) * tank_lamp * wet;
+		EMISSION += col * (0.3 + min(net, 1.5) * 1.3 * (0.2 + 0.8 * max(v_up, 0.0))) * lamp * wet;
 	}
 }

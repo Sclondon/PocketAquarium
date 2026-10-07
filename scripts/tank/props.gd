@@ -132,6 +132,42 @@ static func plant(mb: MB, at: Vector3, kind: int, rng: RandomNumberGenerator) ->
 					ribbon(mb, p, 0.05, 0.05, Vector3(cos(a), 0.0, sin(a)) * 0.16 * s, Color(0.8, 0.25, 0.3), rng, 2)
 
 
+## What grows in a salt water tank, one of three kinds: branching coral, kelp, or a sea fan.
+static func sea_plant(mb: MB, at: Vector3, kind: int, rng: RandomNumberGenerator) -> void:
+	match kind % 3:
+		0:
+			for i in 9:
+				ribbon(mb, at + Vector3(rng.randf_range(-0.08, 0.08), 0.0, rng.randf_range(-0.05, 0.05)), rng.randf_range(0.7, 1.25),
+						0.05, Vector3(rng.randf_range(-0.2, 0.2), 0.0, rng.randf_range(-0.1, 0.1)), Color(0.45, 0.5, 0.15), rng, 6)
+		1:
+			var pink := glow(Color(1.0, 0.45, 0.55), 0.25)
+			_branch(mb, at, Vector3(rng.randf_range(-0.15, 0.15), 1.0, 0.0).normalized(), 0.3, 0.045, 3, pink, rng)
+		2:
+			var fan := glow(Color(0.75, 0.4, 0.95), 0.2)
+			for i in 9:
+				var a := lerpf(-1.1, 1.1, i / 8.0)
+				var top := at + Vector3(sin(a), cos(a), 0.0) * rng.randf_range(0.45, 0.6)
+				frustum(mb, at, top, 0.014, 0.008, 3, fan, false)
+				if i > 0:
+					var before := lerpf(-1.1, 1.1, (i - 1) / 8.0)
+					for k in 3:
+						var r := 0.18 + k * 0.13
+						frustum(mb, at + Vector3(sin(before), cos(before), 0.0) * r, at + Vector3(sin(a), cos(a), 0.0) * r, 0.007, 0.007, 3, fan, false)
+
+
+## A branch of coral that forks, and forks again.
+static func _branch(mb: MB, from: Vector3, dir: Vector3, length: float, thick: float, forks: int, col: Color,
+		rng: RandomNumberGenerator) -> void:
+	var to := from + dir * length
+	frustum(mb, from, to, thick, thick * 0.75, 5, col, true, rng)
+	if forks <= 0:
+		return
+	for i in 3:
+		var a := TAU * i / 3.0 + rng.randf() * 1.5
+		var lean := (dir + Vector3(cos(a), 0.35, sin(a)) * 0.75).normalized()
+		_branch(mb, to, lean, length * 0.72, thick * 0.72, forks - 1, col, rng)
+
+
 static func rock(mb: MB, at: Vector3, r: float, rng: RandomNumberGenerator) -> void:
 	blob(mb, at + Vector3(0.0, r * 0.45, 0.0), Vector3(r, r * 0.7, r * 0.8), rng, Color(0.45, 0.45, 0.48), 6, 3, 0.25)
 

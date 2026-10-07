@@ -1,7 +1,7 @@
 // Shared by everything that is under, or is, the water.
 
-// How bright the tank's lamp is (0 off to 1 on); set by tank.gd.
-global uniform float tank_lamp;
+// How bright the lamp of the tank this is in is (0 off to 1 on); set by tank.gd.
+uniform float lamp = 1.0;
 
 // The net of light that moving water throws on whatever is under it: 0 between the lines,
 // 1 and more on them. `uv` repeats every 1.

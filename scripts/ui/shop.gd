@@ -1,6 +1,7 @@
 extends "res://scripts/ui/sheet.gd"
-## The shop: everything that can be bought for the tank, for tickets. Four shelves: fish (the
-## seven kinds that are sold; the rest are bred), plants and small life, gear, and ornaments.
+## The shop: everything that can be bought for the tank being looked at, for tickets. Four
+## shelves: fish (the kinds that are sold for its water; the rest are bred), plants and small
+## life, gear, and ornaments.
 
 const Species := preload("res://scripts/tank/species.gd")
 const Tank := preload("res://scripts/tank/tank.gd")
@@ -52,7 +53,7 @@ func refresh() -> void:
 		body.add_child(UiKit.label("Room in the tank: %.1f of %d" % [tank.capacity() - tank.crowd(), int(tank.capacity())], 18, UiKit.TEAL))
 		for id: String in Species.ORDER:
 			var sp: Dictionary = Species.LIST[id]
-			if int(sp.price) > 0:
+			if int(sp.price) > 0 and Species.water(id) == tank.kind:
 				var why := "" if tank.has_room_for(id) else "FULL"
 				_row(FishIcon.new(id), sp.name, sp.blurb, sp.price, why, _buy.bind("fish:" + id, sp.price))
 		return
@@ -61,11 +62,15 @@ func refresh() -> void:
 			continue
 		var id: String = good[1]
 		var title: String = good[2]
+		var blurb: String = good[3]
 		var price: int = good[4]
 		var why := ""
 		match id:
 			"plant":
 				why = "" if tank.plants < Tank.MAX_PLANTS else "MAX"
+				if tank.kind == "sea":
+					title = "Coral or kelp"
+					blurb = "Kelp, coral or a sea fan, in turn. Makes oxygen and takes up waste."
 			"snail":
 				why = "" if tank.snails < Tank.MAX_SNAILS else "MAX"
 			"shrimp":
@@ -81,7 +86,7 @@ func refresh() -> void:
 					price = Tank.SIZES[tank.size_id + 1].price
 			_:
 				why = "OWNED" if tank.decor.has(id) else ""
-		_row(null, title, good[3], price, why, _buy.bind(id, price))
+		_row(null, title, blurb, price, why, _buy.bind(id, price))
 
 
 ## One thing for sale: a picture (or none), its name and a line about it, and its price on a

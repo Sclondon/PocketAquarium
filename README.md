@@ -1,7 +1,9 @@
 # Pocket Aquarium
 
-A small low-poly fish tank to keep, for the Scareathon arcade. Feed the fish, keep the water
-alive, breed new kinds and fill the fish-dex. The shop takes the arcade's tickets.
+A shelf of small fish tanks to keep, for the Scareathon arcade. Feed the fish, keep the water
+alive, breed new kinds and fill the fish-dex. There is room on the shelf for three tanks, and
+any of them can be a magic salt water tank, which holds the sea: salmon, tuna, sharks, orcas,
+a giant squid, a blue whale. The shop takes the arcade's tickets.
 
 Godot **4.7**, GL Compatibility. Open `project.godot` and press F5. It lays itself out for a
 wide screen or a tall one.
@@ -19,6 +21,8 @@ wide screen or a tall one.
 | Net out a dead fish | Click it | Tap it |
 | Turn the tank, or turn about the fish being followed | Drag (anywhere, with FEED) | Drag |
 | Zoom | Wheel | Pinch |
+| Look at the shelf above or below | UP and DOWN, at the right | The same |
+| Put a tank on an empty shelf | The price buttons on the plate over it | The same |
 
 Along the bottom: FEED and SCRUB pick the tool, LAMP turns the light on and off, WATER changes
 the water (once every six hours), SHOP and DEX open their sheets.
@@ -33,7 +37,14 @@ There are four ways to play it, and they all run at once:
   and will not eat; a day after, it is hungry; after nearly three days unfed it is starving,
   and three days of that kills it. Fry take a week to grow up. An unwell fish loses its colour.
 - **A toy.** Turn the tank, tap the glass, turn the lamp off, dress the gravel.
-- **A collection.** Seven kinds of fish are sold. Eleven more can only be bred, and breeding
+- **A shelf.** It starts with one fresh water tank on the middle shelf. The shelves above and
+  below are empty: each will take another fresh water tank (200 tickets, with two guppies) or
+  a magic salt water tank (500, empty but for a frond of kelp). The tanks are kept apart: each
+  has its own water, gear and ornaments, and the shop sells for the one being looked at. Sea
+  life is sized to fit (a blue whale is about a metre long, in a tank two to four metres wide)
+  and otherwise lives by the same rules as the fish: it eats the same food, and two of a kind
+  may breed.
+- **A collection.** Seven kinds of fresh water fish and seven of sea life are sold. Eleven more can only be bred, and breeding
   is uncommon: a tank with two well-fed, healthy adults, good water and room to spare (no more
   than seven tenths full, counting fry as grown) lays an egg about every three days, the egg
   takes a day to hatch, and both parents then wait four days. Two of the same kind have another; the right two different kinds have something new
@@ -65,7 +76,7 @@ The page the cabinet is in owns the balance, and the game talks to it with windo
 The game takes the price off its own copy of the balance at once, so the page should answer a
 spend with a fresh `TICKETS` message, which always wins. Only messages from the parent window
 are listened to. `item` is `fish:<id>`, or one of `plant`, `snail`, `shrimp`, `pump`,
-`filter`, `bigger`, `column`, `castle`, `chest`, `skull`.
+`filter`, `bigger`, `column`, `castle`, `chest`, `skull`, or `tank:fresh` or `tank:sea` for a new tank.
 
 **The arcade page does not send these yet.** Until a `TICKETS` message arrives the game runs
 on a practice wallet of 300 tickets kept in its own save, and the plate in the corner reads
@@ -75,28 +86,29 @@ PRACTICE TICKETS. Add `?tickets=500` to the address (or run with `-- --tickets=5
 
 | Path | What |
 |---|---|
-| `scripts/main.gd` | the frame: low-res render target, camera, what a tap or drag does, saving |
+| `scripts/main.gd` | the frame: low-res render target, the shelf's three slots, camera, what a tap or drag does, saving |
 | `scripts/tank/tank.gd` | the tank: its meshes, the water, food, eggs, breeding, snails and shrimps |
 | `scripts/tank/room.gd` | the room: a shelf unit with a slot for each of three tanks (only the middle one is used yet), the wall, the room's own dim light |
 | `scripts/tank/fish.gd` | one fish: swimming, hunger, health, growing |
 | `scripts/tank/species.gd` | every kind of fish, what each looks like and which pairs make which |
-| `scripts/tank/fish_mesh.gd` | builds a fish's model from its `look` |
+| `scripts/tank/fish_mesh.gd` | builds an animal's model from its `look`: smooth-skinned fish (and sharks and whales), squid and jellyfish |
 | `scripts/tank/props.gd` | plants, rocks, ornaments, gear and the small things |
 | `scripts/ui/` | the HUD, the shop and fish-dex sheets, the flat fish pictures, the UI kit |
 | `scripts/autoload/` | the save (`user://aquarium.json`), tickets, and sound effects (synthesized at start) |
-| `shaders/` | PS1 vertex snap, fish wag, the water (the glass with its algae, the far end with its shafts of light, the surface, and the net of light on everything under it), dither post-process |
+| `shaders/` | the animals' banded, painted-model shading and their swimming, the sand, a light PS1 vertex snap, the water (the glass with its algae, the far end with its shafts of light, the surface, and the net of light on everything under it), dither post-process |
 
-Adding a fish is one entry in `Species.LIST` (and its id in `ORDER`); give it a `price` to
-sell it or a line in `CROSSES` to breed it. The numbers that set how hard the tank is to keep
+Adding an animal is one entry in `Species.LIST` (and its id in `ORDER`); give it a `price` to
+sell it or a line in `CROSSES` to breed it, and a `water` of "sea" if it lives in salt water.
+What its `look` can say is listed at the top of `fish_mesh.gd`. The numbers that set how hard the tank is to keep
 are the constants at the top of `fish.gd` and `tank.gd` (all in seconds of real time), and the
 arithmetic in `Tank._step_water`.
 
 ## Tests and builds
 
 ```
-godot --headless --path . -- --no-save --smoke          # months of tank time for three tanks (fed daily, fully stocked, left alone); prints how each went
+godot --headless --path . -- --no-save --smoke          # months of tank time for four tanks (fed daily, fully stocked, left alone, salt water); prints how each went
 godot --path . -- --no-save --speed=1440                # play with the tank's clock run fast: a day a minute
-godot --path . -- --no-save --shots=C:/some/folder      # screenshots of the tank and each sheet, wide and tall
+godot --path . -- --no-save --shots=C:/some/folder      # screenshots of both kinds of tank, each sea animal up close, and each sheet, wide and tall
 godot --headless --path . --export-release "Web" build/index.html
 ```
 

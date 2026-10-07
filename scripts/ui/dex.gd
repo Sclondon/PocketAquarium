@@ -1,9 +1,12 @@
 extends "res://scripts/ui/sheet.gd"
-## The fish-dex: every kind of fish there is, with the ones kept so far filled in and a hint
-## for each of the rest.
+## The fish-dex: every kind of animal there is, with the ones kept so far (in any tank) filled
+## in and a hint for each of the rest.
 
 const Species := preload("res://scripts/tank/species.gd")
 const FishIcon := preload("res://scripts/ui/fish_icon.gd")
+
+## The kinds kept so far (main.gd's, which every tank shares).
+var kept := {}
 
 
 func _init() -> void:
@@ -13,14 +16,14 @@ func _init() -> void:
 func refresh() -> void:
 	_clear(body)
 	_clear(strip)
-	strip.add_child(UiKit.label("%d of %d kinds kept" % [tank.dex.size(), Species.ORDER.size()], 18, UiKit.TEAL))
+	strip.add_child(UiKit.label("%d of %d kinds kept" % [kept.size(), Species.ORDER.size()], 18, UiKit.TEAL))
 	var grid := GridContainer.new()
 	grid.columns = maxi(int((plate_width() - 40.0) / 200.0), 2)
 	grid.add_theme_constant_override("h_separation", 8)
 	grid.add_theme_constant_override("v_separation", 8)
 	body.add_child(grid)
 	for id: String in Species.ORDER:
-		var known: bool = tank.dex.has(id)
+		var known: bool = kept.has(id)
 		var cell := PanelContainer.new()
 		cell.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		cell.add_theme_stylebox_override("panel", UiKit.flat(Color(UiKit.INK, 0.6), Color(UiKit.PAPER, 0.3), 1, 8, 8))

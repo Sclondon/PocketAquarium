@@ -1,6 +1,8 @@
 extends CanvasLayer
-## Everything drawn over the tank: the tickets, the three water gauges, the row of tools along
-## the bottom, the card for the fish in hand, messages, and the shop and fish-dex sheets.
+## Everything drawn over the shelf: the tickets, the water gauges of the tank being looked at,
+## the row of tools along the bottom, the buttons that step up and down the shelf, the card for
+## the fish in hand, the offer of a tank for an empty slot, messages, and the shop and fish-dex
+## sheets.
 
 ## A tap or drag on the tank itself (anywhere no button is).
 signal pad_input(event: InputEvent)
@@ -9,11 +11,16 @@ signal give_away(fish: Node)
 signal card_closed
 ## Step to the next fish (1) or the one before (-1).
 signal next_fish(step: int)
+## Look at the shelf above (1) or below (-1).
+signal shelf_stepped(step: int)
+## Buy a tank of this kind for the empty slot being looked at.
+signal tank_wanted(kind: String)
 
 const UiKit := preload("res://scripts/ui/ui_kit.gd")
 const Shop := preload("res://scripts/ui/shop.gd")
 const Dex := preload("res://scripts/ui/dex.gd")
 const FishIcon := preload("res://scripts/ui/fish_icon.gd")
+const Tank := preload("res://scripts/tank/tank.gd")
 
 var tank
 var shop: Shop
@@ -36,10 +43,15 @@ var _card_stage: Label
 var _card_fed: ProgressBar
 var _card_health: ProgressBar
 var _fish: Node
+var _water_plate: PanelContainer
+var _tank_only: Array[Control] = []
+var _up: Button
+var _down: Button
+var _offer: PanelContainer
+var _offer_buttons := {}
 
 
-func setup(in_tank) -> void:
-	tank = in_tank
+func setup() -> void:
 	layer = 2
 	var root := Control.new()
 	root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -77,6 +89,7 @@ func setup(in_tank) -> void:
 	water.offset_right = -12
 	water.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	root.add_child(water)
+	_water_plate = water
 	var grid := GridContainer.new()
 	grid.columns = 2
 	grid.add_theme_constant_override("h_separation", 8)
@@ -114,20 +127,91 @@ func setup(in_tank) -> void:
 		var b := UiKit.button(tool.to_upper(), pick_tool.bind(tool))
 		bar.add_child(b)
 		_tools[tool] = b
+		_tank_only.append(b)
 	_lamp = UiKit.button("LAMP", func() -> void: tank.set_lamp(not tank.lamp_on))
 	bar.add_child(_lamp)
 	_water = UiKit.button("WATER", _change_water)
 	bar.add_child(_water)
 	shop = Shop.new()
 	dex = Dex.new()
-	bar.add_child(UiKit.button("SHOP", shop.open))
+	var shop_button := UiKit.button("SHOP", shop.open)
+	bar.add_child(shop_button)
 	bar.add_child(UiKit.button("DEX", dex.open))
+	_tank_only.append_array([_lamp, _water, shop_button])
+
+	# up and down the shelf, at the right-hand edge
+	var steps := VBoxContainer.new()
+	steps.set_anchors_and_offsets_preset(Control.PRESET_CENTER_RIGHT)
+	steps.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	steps.grow_vertical = Control.GROW_DIRECTION_BOTH
+	steps.offset_right = -12
+	steps.add_theme_constant_override("separation", 6)
+	root.add_child(steps)
+	_up = UiKit.button("UP", func() -> void: shelf_stepped.emit(1), Vector2(74, 50))
+	_down = UiKit.button("DOWN", func() -> void: shelf_stepped.emit(-1), Vector2(74, 50))
+	steps.add_child(_up)
+	steps.add_child(_down)
 
 	_build_card(root)
+	_build_offer(root)
 	for sheet: Control in [shop, dex]:
-		sheet.tank = tank
 		root.add_child(sheet)
 	pick_tool("feed")
+
+
+## The plate shown over an empty slot of the shelf: a tank of either kind, for tickets.
+func _build_offer(root: Control) -> void:
+	_offer = PanelContainer.new()
+	_offer.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
+	_offer.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	_offer.grow_vertical = Control.GROW_DIRECTION_BOTH
+	_offer.visible = false
+	root.add_child(_offer)
+	var col := VBoxContainer.new()
+	col.add_theme_constant_override("separation", 6)
+	_offer.add_child(col)
+	col.add_child(UiKit.label("An empty shelf", 28, UiKit.GOLD))
+	var blurbs := {"fresh": "Another tank like the first, with two guppies in it.",
+			"sea": "Holds the sea: salmon, sharks, whales, a giant squid. Do not ask how."}
+	for kind: String in ["fresh", "sea"]:
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 10)
+		col.add_child(row)
+		var words := VBoxContainer.new()
+		words.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		words.add_theme_constant_override("separation", -2)
+		words.custom_minimum_size.x = 300
+		words.add_child(UiKit.label(Tank.KIND_NAMES[kind], 21))
+		var line := UiKit.label(blurbs[kind], 16, Color(UiKit.PAPER, 0.8), 0)
+		line.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		words.add_child(line)
+		row.add_child(words)
+		var buy := UiKit.button(str(Tank.PRICES[kind]), func() -> void: tank_wanted.emit(kind), Vector2(96, 46))
+		buy.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		row.add_child(buy)
+		_offer_buttons[kind] = buy
+	Tickets.changed.connect(_show_offer_prices)
+
+
+func _show_offer_prices() -> void:
+	for kind: String in _offer_buttons:
+		(_offer_buttons[kind] as Button).disabled = Tank.PRICES[kind] > Tickets.balance
+
+
+## Turns the HUD to a slot of the shelf: its tank (null for an empty slot, which gets the
+## offer of one instead of the tools).
+func show_slot(in_tank, at: int, slots: int) -> void:
+	tank = in_tank
+	shop.tank = tank
+	dex.tank = tank
+	shop.close()
+	for c in _tank_only:
+		c.visible = tank != null
+	_water_plate.visible = tank != null
+	_offer.visible = tank == null
+	_up.disabled = at >= slots - 1
+	_down.disabled = at <= 0
+	_show_offer_prices()
 
 
 func _build_card(root: Control) -> void:
@@ -174,6 +258,7 @@ func _build_card(root: Control) -> void:
 
 func _process(_delta: float) -> void:
 	if tank == null:
+		_day.text = ""
 		return
 	_set_gauge("oxygen", tank.o2)
 	_set_gauge("clean", 1.0 - tank.waste)

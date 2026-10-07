@@ -11,6 +11,9 @@ extends Node3D
 ## Algae grows on the glass in the light, faster in dirty water; snails graze it and it can be
 ## scrubbed off. Fish are harmed by too little oxygen or too much waste (see fish.gd).
 ##
+## A tank is one of two kinds: "fresh", or "sea", a magic salt water tank, which keeps sea life
+## of any size (see species.gd) and is dressed with white sand, coral and kelp. They work alike.
+##
 ## It lights itself: a lamp in the hood over the water (see `lamp_glow`), which room.gd dims
 ## the room by. The origin is the middle of the tank's floor; the tank is `width` (x) by `height` by `depth`.
 
@@ -54,8 +57,14 @@ const WATER_WAIT := 6.0 * 3600.0
 const MAX_AWAY := 30.0 * DAY
 
 const CLEAN_WATER := Color(0.35, 0.8, 0.95)
+const SEA_WATER := Color(0.16, 0.5, 0.98)
 const FOUL_WATER := Color(0.42, 0.46, 0.16)
+## What a new tank costs, by kind.
+const PRICES := {"fresh": 200, "sea": 500}
+const KIND_NAMES := {"fresh": "Fresh water tank", "sea": "Magic salt water tank"}
 
+## "fresh" or "sea"
+var kind := "fresh"
 var size_id := 0
 var width := 2.2
 var height := 1.5
@@ -69,7 +78,7 @@ var shrimps := 0
 ## What is fitted ("pump", "filter") and what is on the gravel ("castle", "chest", ...).
 var gear := {}
 var decor := {}
-## Every kind of fish ever kept here.
+## Every kind of animal ever kept, in any tank: main.gd gives every tank the same one.
 var dex := {}
 
 var o2 := 0.9
@@ -87,6 +96,7 @@ var _life: Node3D
 var _mat: ShaderMaterial
 var _plant_mat: ShaderMaterial
 var _dry: ShaderMaterial
+var _sand: ShaderMaterial
 var _glass: ShaderMaterial
 var _back: ShaderMaterial
 var _top: ShaderMaterial
@@ -118,6 +128,8 @@ func _ready() -> void:
 	_plant_mat.set_shader_parameter("sway", 1.0)
 	_dry = ShaderMaterial.new()
 	_dry.shader = preload("res://shaders/psx.gdshader")
+	_sand = ShaderMaterial.new()
+	_sand.shader = preload("res://shaders/sand.gdshader")
 	_glass = ShaderMaterial.new()
 	_glass.shader = preload("res://shaders/glass.gdshader")
 	_back = ShaderMaterial.new()
@@ -172,7 +184,7 @@ func inside() -> AABB:
 
 ## Where a fish may be: the water, kept `margin` clear of the glass, gravel and surface.
 func swim_box(margin: float) -> AABB:
-	var low := Vector3(-width * 0.5 + margin, 0.2 + margin, -depth * 0.5 + margin)
+	var low := Vector3(-width * 0.5 + margin, 0.22 + margin * 0.5, -depth * 0.5 + margin)
 	var high := Vector3(width * 0.5 - margin, water_level - margin, depth * 0.5 - margin)
 	return AABB(low, (high - low).max(Vector3.ONE * 0.01))
 
@@ -209,13 +221,14 @@ func to_data() -> Dictionary:
 	var laid: Array = []
 	for egg in _eggs:
 		laid.append({"species": egg.species, "age": egg.age, "x": egg.node.position.x, "z": egg.node.position.z})
-	return {"size": size_id, "plants": plants, "snails": snails, "shrimps": shrimps, "gear": gear.keys(),
+	return {"kind": kind, "size": size_id, "plants": plants, "snails": snails, "shrimps": shrimps, "gear": gear.keys(),
 			"decor": decor.keys(), "dex": dex.keys(), "o2": o2, "waste": waste, "algae": algae, "lamp": lamp_on,
 			"fish": kept, "eggs": laid, "age": age, "water_wait": water_wait,
 			"at": Time.get_unix_time_from_system()}
 
 
-## Sets the tank up from a save. An empty one is a new tank: two guppies and a plant.
+## Sets the tank up from a save. One with no fish listed is a new tank: two guppies and a plant
+## in fresh water, and only a frond of kelp in a salt water one.
 func load_state(data: Dictionary) -> void:
 	for f in fish:
 		f.queue_free()
@@ -224,6 +237,7 @@ func load_state(data: Dictionary) -> void:
 		for item: Dictionary in list:
 			item.node.queue_free()
 		list.clear()
+	kind = "sea" if data.get("kind", "fresh") == "sea" else "fresh"
 	size_id = clampi(int(data.get("size", 0)), 0, SIZES.size() - 1)
 	plants = clampi(int(data.get("plants", 1)), 0, MAX_PLANTS)
 	snails = clampi(int(data.get("snails", 0)), 0, MAX_SNAILS)
@@ -234,7 +248,6 @@ func load_state(data: Dictionary) -> void:
 	decor = {}
 	for id in data.get("decor", []):
 		decor[str(id)] = true
-	dex = {}
 	for id in data.get("dex", []):
 		if Species.LIST.has(str(id)):
 			dex[str(id)] = true
@@ -247,10 +260,10 @@ func load_state(data: Dictionary) -> void:
 	_lamp = 1.0 if lamp_on else 0.0
 	rebuild()
 	var saved: Array = data.get("fish", [])
-	if not data.has("fish"):
+	if not data.has("fish") and kind == "fresh":
 		saved = [{"species": "guppy"}, {"species": "guppy"}]
 	for entry in saved:
-		if entry is Dictionary:
+		if entry is Dictionary and Species.LIST.has(str(entry.get("species", ""))) and Species.water(entry.species) == kind:
 			_spawn(entry)
 	for i in snails:
 		_add_critter_node("snail")
@@ -320,7 +333,7 @@ func rebuild() -> void:
 
 	# the frame: a base, a rim round the top, a post at each corner, and the hood with its lamp
 	var frame := MB.new()
-	var trim := Color(0.24, 0.26, 0.33)
+	var trim := Color(0.24, 0.26, 0.33) if kind == "fresh" else Color(0.3, 0.2, 0.42)
 	Props.box(frame, Vector3(0.0, -0.05, 0.0), Vector3(width + 0.1, 0.1, depth + 0.1), trim)
 	for sz: float in [-1.0, 1.0]:
 		Props.box(frame, Vector3(0.0, height, sz * hd), Vector3(width + 0.08, 0.05, 0.05), trim)
@@ -329,6 +342,13 @@ func rebuild() -> void:
 		for sz: float in [-1.0, 1.0]:
 			Props.box(frame, Vector3(sx * hw, height * 0.5, sz * hd), Vector3(0.035, height, 0.035), trim)
 	Props.box(frame, Vector3(0.0, height + 0.08, -hd * 0.25), Vector3(width * 0.94, 0.09, depth * 0.4), Color(0.13, 0.14, 0.18))
+	if kind == "sea":
+		# the magic shows: a line of gold runs round the base, and a gem glows at each corner
+		for sz: float in [-1.0, 1.0]:
+			Props.box(frame, Vector3(0.0, -0.05, sz * (hd + 0.05)), Vector3(width + 0.12, 0.025, 0.012), Props.glow(Color(1.0, 0.8, 0.3), 0.5))
+			for sx: float in [-1.0, 1.0]:
+				Props.box(frame, Vector3(sx * hw, height + 0.02, sz * hd), Vector3(0.08, 0.08, 0.08), Props.glow(Color(0.7, 0.45, 1.0), 0.7),
+						null, 0.0, Basis(Vector3.UP, 0.785))
 	if gear.has("filter"):
 		Props.filter_box(frame, Vector3(-hw + 0.35, height - 0.08, -hd - 0.09), 0.5)
 	_shell.add_child(_instance(frame.build(), _dry))
@@ -351,19 +371,21 @@ func rebuild() -> void:
 	_back.set_shader_parameter("level", water_level)
 
 	var mb := MB.new()
-	# gravel
-	var nx := int(width * 6.0)
-	var nz := int(depth * 6.0)
-	var pebbles := [Color(0.85, 0.72, 0.5), Color(0.75, 0.62, 0.45), Color(0.9, 0.8, 0.62), Color(0.62, 0.56, 0.5)]
+	# the sand, or gravel, in gentle humps (see sand.gdshader for its grain)
+	var bed := MB.new()
+	var nx := int(width * 12.0)
+	var nz := int(depth * 12.0)
 	for i in nx:
 		for j in nz:
 			var x0 := lerpf(-hw, hw, float(i) / nx)
 			var x1 := lerpf(-hw, hw, float(i + 1) / nx)
 			var z0 := lerpf(-hd, hd, float(j) / nz)
 			var z1 := lerpf(-hd, hd, float(j + 1) / nz)
-			var col: Color = pebbles[rng.randi() % pebbles.size()]
-			mb.quad(Vector3(x0, floor_y(x0, z0), z0), Vector3(x1, floor_y(x1, z0), z0), Vector3(x1, floor_y(x1, z1), z1),
-					Vector3(x0, floor_y(x0, z1), z1), col, Vector3.UP)
+			bed.quad(Vector3(x0, floor_y(x0, z0), z0), Vector3(x1, floor_y(x1, z0), z0), Vector3(x1, floor_y(x1, z1), z1),
+					Vector3(x0, floor_y(x0, z1), z1), Color.WHITE, Vector3.UP)
+	_shell.add_child(_instance(bed.build(), _sand))
+	_sand.set_shader_parameter("sand", Color(0.8, 0.62, 0.4) if kind == "fresh" else Color(0.93, 0.89, 0.78))
+	_sand.set_shader_parameter("coarse", 0.8 if kind == "fresh" else 0.1)
 	# what stands on it
 	Props.rock(mb, _on_floor(-hw * 0.62, hd * 0.35), 0.16, rng)
 	Props.rock(mb, _on_floor(hw * 0.55, -hd * 0.5), 0.2, rng)
@@ -385,7 +407,10 @@ func rebuild() -> void:
 		var prng := RandomNumberGenerator.new()
 		prng.seed = 100 + i
 		var x := lerpf(-hw + 0.25, hw - 0.25, fmod(0.13 + i * 0.381, 1.0))
-		Props.plant(greens, _on_floor(x, lerpf(-hd + 0.14, -0.05, prng.randf())), i, prng)
+		if kind == "sea":
+			Props.sea_plant(greens, _on_floor(x, lerpf(-hd + 0.14, -0.05, prng.randf())), i, prng)
+		else:
+			Props.plant(greens, _on_floor(x, lerpf(-hd + 0.14, -0.05, prng.randf())), i, prng)
 	if not greens.is_empty():
 		_shell.add_child(_instance(greens.build(), _plant_mat))
 
@@ -737,8 +762,13 @@ func lamp_glow() -> float:
 func _step_looks(light: float) -> void:
 	_light.light_energy = 4.0 * _lamp
 	_hood.albedo_color = Color(0.9, 0.98, 1.0) * lerpf(0.08, 1.0, _lamp)
-	RenderingServer.global_shader_parameter_set("tank_lamp", lerpf(0.12, 1.0, _lamp))
-	var colour := CLEAN_WATER.lerp(FOUL_WATER, waste)
+	var glow := lerpf(0.12, 1.0, _lamp)
+	for mat: ShaderMaterial in [_mat, _plant_mat, _sand]:
+		mat.set_shader_parameter("lamp", glow)
+	for f in fish:
+		f.set_lamp(glow)
+	_light.light_color = Color(0.8, 0.95, 1.0) if kind == "fresh" else Color(0.72, 0.8, 1.0)
+	var colour := (CLEAN_WATER if kind == "fresh" else SEA_WATER).lerp(FOUL_WATER, waste)
 	for mat: ShaderMaterial in [_glass, _back, _top]:
 		mat.set_shader_parameter("water", colour)
 		mat.set_shader_parameter("light", lerpf(0.3, 1.0, light))

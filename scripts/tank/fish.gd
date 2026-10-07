@@ -53,6 +53,8 @@ var _heading := Vector3.FORWARD
 var _facing := Vector2.RIGHT
 var _wag := 0.0
 var _roll := 0.0
+## Its build: "fish", "squid" or "jelly" (a jellyfish stays upright and only drifts)
+var _plan := "fish"
 var _rng := RandomNumberGenerator.new()
 
 
@@ -72,8 +74,14 @@ func setup(in_tank, data: Dictionary) -> void:
 	_mat = ShaderMaterial.new()
 	_mat.shader = preload("res://shaders/fish.gdshader")
 	_mat.set_shader_parameter("wag_phase", _rng.randf() * TAU)
+	var look: Dictionary = info().look
+	_plan = look.get("plan", "fish")
+	_mat.set_shader_parameter("swim", 2 if _plan == "jelly" else (1 if look.get("flukes", false) else 0))
+	_mat.set_shader_parameter("wag_amp", 0.07 if _plan == "squid" else 0.12)
+	_mat.set_shader_parameter("spots", look.get("spots", 0.0))
+	_mat.set_shader_parameter("spot_color", look.get("spot", Color(0.05, 0.08, 0.1)))
 	material_override = _mat
-	var box: AABB = tank.swim_box(reach())
+	var box: AABB = tank.swim_box(minf(reach(), 0.3))
 	position = box.position + box.size * Vector3(_rng.randf(), _rng.randf(), _rng.randf())
 	_heading = Vector3(1.0 if _rng.randf() < 0.5 else -1.0, 0.0, 0.0)
 	_apply_pose()
@@ -100,6 +108,11 @@ func room() -> float:
 ## How far from its middle a tap still counts as on it (metres).
 func reach() -> float:
 	return _size() * 1.15
+
+
+## How bright the lamp of the tank it is in is (tank.gd tells it).
+func set_lamp(amount: float) -> void:
+	_mat.set_shader_parameter("lamp", amount)
 
 
 func _size() -> float:
@@ -168,7 +181,7 @@ func live(delta: float) -> void:
 
 
 func _swim(delta: float) -> void:
-	var box: AABB = tank.swim_box(reach())
+	var box: AABB = tank.swim_box(minf(reach(), 0.3))
 	var chasing := false
 	if hunger > PECKISH:
 		var food: Dictionary = tank.nearest_food(position)
@@ -201,7 +214,8 @@ func _swim(delta: float) -> void:
 		if turned.length() < 0.05:
 			turned = Vector3(dir.z, 0.0, -dir.x)
 		_heading = turned.normalized()
-	_wag += delta * (4.0 + v.length() * 18.0)
+	# (the big ones beat slowly)
+	_wag += delta * (4.0 + v.length() * 18.0) / maxf(float(info().size), 0.6)
 	_mat.set_shader_parameter("wag_phase", _wag)
 	_apply_pose()
 
@@ -218,4 +232,8 @@ func _apply_pose() -> void:
 	if across.length() > 0.2:
 		_facing = across.normalized()
 	var flat := Vector3(_facing.x, clampf(_heading.y, -0.5, 0.5), _facing.y).normalized()
+	if _plan == "jelly":
+		# upright, tipped a little the way it is drifting
+		basis = (Basis(Vector3.UP, atan2(_facing.x, _facing.y)) * Basis(Vector3.RIGHT, 0.25 - _roll)).scaled(Vector3.ONE * _size())
+		return
 	basis = (Basis.looking_at(flat, Vector3.UP) * Basis(Vector3.FORWARD, _roll)).scaled(Vector3.ONE * _size())

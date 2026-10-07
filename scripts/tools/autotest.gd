@@ -56,6 +56,20 @@ func _smoke() -> void:
 		tank.elapse(86400.0)
 		day += 1
 	print("smoke: left alone, the last of 2 guppies died on day %d; waste %.2f, algae %.2f" % [day, tank.waste, tank.algae])
+
+	var sea = main.add_tank(2, {"kind": "sea"})
+	sea.grow()
+	sea.grow()
+	for id in ["pump", "filter"]:
+		sea.fit(id)
+	for i in 5:
+		sea.add_plant()
+	for id: String in ["jellyfish", "salmon", "salmon", "tuna", "shark", "giant_squid", "blue_whale"]:
+		sea.add_fish(id)
+	print("smoke: a magic salt water tank, fed daily")
+	_keep(sea, 60)
+	main.save()
+	print("smoke: saved %d tanks, dex %d" % [Save.data.tanks.filter(func(t: Variant) -> bool: return t != null).size(), main.dex.size()])
 	get_tree().quit()
 
 
@@ -141,6 +155,34 @@ func _shots() -> void:
 	await _settle(0.5)
 	await _shot("6_dex")
 	main.hud.dex.close()
+	# the shelf above: a magic salt water tank with one of everything, then the empty one below
+	var sea = main.add_tank(2, {"kind": "sea"})
+	sea.grow()
+	sea.grow()
+	sea.fit("pump")
+	sea.place("chest")
+	for i in 5:
+		sea.add_plant()
+	for id: String in ["jellyfish", "salmon", "tuna", "shark", "orca", "giant_squid", "blue_whale"]:
+		sea.add_fish(id)
+	for i in 300:
+		sea.step(0.1)
+	main.look_at_slot(2)
+	await _settle(2.0)
+	await _shot("6a_sea_tank")
+	for i in sea.fish.size():
+		main.call("_select", sea.fish[i])
+		await _settle(1.5)
+		await _shot("6b_sea_%s" % sea.fish[i].species)
+	main.call("_select", null)
+	main.look_at_slot(0)
+	await _settle(1.5)
+	await _shot("6c_empty_shelf")
+	main.look_at_slot(1)
+	main.call("_select", tank.fish[4])
+	await _settle(1.5)
+	await _shot("6d_fresh_close")
+	main.call("_select", null)
 	get_window().size = Vector2i(540, 960)
 	await _settle(1.0)
 	await _shot("7_portrait")

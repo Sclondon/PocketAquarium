@@ -3,8 +3,8 @@ extends Node3D
 ## for each of three tanks, one above the other. The tank in the middle slot stands at the
 ## origin; the other two slots are empty for now. Most of the light is the tank's own lamp.
 ##
-## The unit is built to take the biggest tank, so it never changes; only the odds and ends
-## beside the tank do, to keep clear of it (see `dress`).
+## The unit is built to take the biggest tank, so it never changes; only the odds and ends on
+## its shelves do, to keep clear of whatever tanks there are (see `dress`).
 
 const MB := preload("res://scripts/util/mesh_builder.gd")
 const Props := preload("res://scripts/tank/props.gd")
@@ -28,7 +28,7 @@ var _mat: ShaderMaterial
 var _env: Environment
 var _key: DirectionalLight3D
 var _odds: MeshInstance3D
-var _dressed_for := -1.0
+var _dressed_for := ""
 
 
 func _ready() -> void:
@@ -86,11 +86,6 @@ func _ready() -> void:
 	# a window on one side, with the moon behind it, and a picture on the other
 	_window(mb, Vector3(-5.2, 1.3, wall_z + 0.02))
 	_picture(mb, Vector3(4.3, 1.5, wall_z + 0.02))
-	# odds and ends on the empty shelves, kept to the ends so a tank will fit
-	Props.books(mb, Vector3(-HALF + 0.45, SLOTS[2] - 0.1, -0.5), rng)
-	Props.pot_plant(mb, Vector3(HALF - 0.5, SLOTS[2] - 0.1, -0.3), rng)
-	Props.box(mb, Vector3(HALF - 0.6, SLOTS[0] + 0.15, -0.4), Vector3(0.8, 0.5, 0.6), Color(0.6, 0.48, 0.32), rng, 0.01)
-	Props.books(mb, Vector3(-HALF + 0.5, SLOTS[0] - 0.1, -0.4), rng)
 	var built := MeshInstance3D.new()
 	built.mesh = mb.build()
 	built.material_override = _mat
@@ -100,20 +95,32 @@ func _ready() -> void:
 	add_child(_odds)
 
 
-## Puts the things kept beside the tank where a tank this wide leaves room for them.
-func dress(tank_width: float) -> void:
-	if is_equal_approx(tank_width, _dressed_for):
+## Puts the odds and ends on the shelves where the tanks leave room for them. `widths` is how
+## wide the tank in each slot is, bottom to top (0 for an empty slot, which gets the most).
+func dress(widths: Array[float]) -> void:
+	if str(widths) == _dressed_for:
 		return
-	_dressed_for = tank_width
+	_dressed_for = str(widths)
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 33
 	var mb := MB.new()
-	var spare := HALF - tank_width * 0.5
-	if spare > 0.5:
-		Props.tin(mb, Vector3(-HALF + spare * 0.45, -0.1, 0.35), rng)
-		Props.pot_plant(mb, Vector3(HALF - spare * 0.5, -0.1, 0.1), rng)
-	if spare > 0.9:
-		Props.books(mb, Vector3(-HALF + 0.35, -0.1, -0.55), rng)
+	for i in SLOTS.size():
+		var y: float = SLOTS[i] - 0.1
+		var spare := HALF - widths[i] * 0.5
+		if widths[i] <= 0.0:
+			# nothing here yet: a few things left on the shelf
+			Props.books(mb, Vector3(-HALF + 0.45, y, -0.5), rng)
+			if i == 0:
+				Props.box(mb, Vector3(HALF - 0.6, y + 0.25, -0.4), Vector3(0.8, 0.5, 0.6), Color(0.6, 0.48, 0.32), rng, 0.01)
+			else:
+				Props.pot_plant(mb, Vector3(HALF - 0.5, y, -0.3), rng)
+			continue
+		if spare > 0.5:
+			if i == 1:
+				Props.tin(mb, Vector3(-HALF + spare * 0.45, y, 0.35), rng)
+			Props.pot_plant(mb, Vector3(HALF - spare * 0.5, y, 0.1), rng)
+		if spare > 0.9:
+			Props.books(mb, Vector3(-HALF + 0.35, y, -0.55), rng)
 	_odds.mesh = mb.build()
 
 
