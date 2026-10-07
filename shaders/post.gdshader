@@ -4,7 +4,7 @@ shader_type canvas_item;
 uniform float levels = 28.0;
 // How much of the banded, dithered colour is mixed in (0 leaves the picture smooth).
 uniform float dither = 0.5;
-uniform float vignette = 0.25;
+uniform float vignette = 0.45;
 
 const float BAYER[16] = float[16](0.0, 8.0, 2.0, 10.0, 12.0, 4.0, 14.0, 6.0,
 		3.0, 11.0, 1.0, 9.0, 15.0, 7.0, 13.0, 5.0);

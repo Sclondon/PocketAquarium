@@ -7,6 +7,8 @@ signal pad_input(event: InputEvent)
 signal tool_picked(tool: String)
 signal give_away(fish: Node)
 signal card_closed
+## Step to the next fish (1) or the one before (-1).
+signal next_fish(step: int)
 
 const UiKit := preload("res://scripts/ui/ui_kit.gd")
 const Shop := preload("res://scripts/ui/shop.gd")
@@ -161,8 +163,13 @@ func _build_card(root: Control) -> void:
 	var buttons := VBoxContainer.new()
 	buttons.add_theme_constant_override("separation", 4)
 	row.add_child(buttons)
-	buttons.add_child(UiKit.button("GIVE AWAY", func() -> void: give_away.emit(_fish), Vector2(120, 38)))
-	buttons.add_child(UiKit.button("CLOSE", func() -> void: card_closed.emit(), Vector2(120, 38)))
+	var steps := HBoxContainer.new()
+	steps.add_theme_constant_override("separation", 4)
+	buttons.add_child(steps)
+	steps.add_child(UiKit.button("<", func() -> void: next_fish.emit(-1), Vector2(58, 34)))
+	steps.add_child(UiKit.button(">", func() -> void: next_fish.emit(1), Vector2(58, 34)))
+	buttons.add_child(UiKit.button("GIVE AWAY", func() -> void: give_away.emit(_fish), Vector2(120, 34)))
+	buttons.add_child(UiKit.button("CLOSE", func() -> void: card_closed.emit(), Vector2(120, 34)))
 
 
 func _process(_delta: float) -> void:

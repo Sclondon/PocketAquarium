@@ -6,6 +6,7 @@ extends Node
 ## that size, `--speed=N` to run the tank's clock N times too fast (1440 is a day a minute), and `--shots=FOLDER` or `--smoke` for the automated tour (tools/autotest.gd).
 
 const Tank := preload("res://scripts/tank/tank.gd")
+const Room := preload("res://scripts/tank/room.gd")
 const Species := preload("res://scripts/tank/species.gd")
 const Hud := preload("res://scripts/ui/hud.gd")
 const Autotest := preload("res://scripts/tools/autotest.gd")
@@ -14,8 +15,15 @@ const Autotest := preload("res://scripts/tools/autotest.gd")
 const PIXEL := 3
 const FOV := 40.0
 const SAVE_EVERY := 8.0
+## The camera's range: shares of the fitting distance for the whole tank, and metres from a
+## fish that is being followed.
+const ZOOM_IN := 0.6
+const ZOOM_OUT := 1.7
+const CLOSEST := 0.3
+const FOLLOW_FROM := 1.0
 
 var tank: Tank
+var room: Room
 var hud: Hud
 var camera: Camera3D
 var tool := "feed"
@@ -24,7 +32,12 @@ var selected: Node
 var _container: SubViewportContainer
 var _yaw := 0.25
 var _pitch := 0.14
-var _zoom := 1.0
+## How far off the camera is: a share of the distance that just fits the whole tank in. With a
+## fish selected it may come in far closer (CLOSEST metres from the fish).
+var _zoom := 1.12
+var _zoom_before := 1.12
+var _focus := Vector3.ZERO
+var _away := 0.0
 var _pressed := false
 var _dragging := false
 var _press_at := Vector2.ZERO
@@ -47,10 +60,13 @@ func _ready() -> void:
 	add_child(_container)
 	var view := SubViewport.new()
 	_container.add_child(view)
+	room = Room.new()
+	view.add_child(room)
 	tank = Tank.new()
 	view.add_child(tank)
 	camera = Camera3D.new()
 	camera.fov = FOV
+	camera.near = 0.03
 	view.add_child(camera)
 
 	hud = Hud.new()
@@ -60,11 +76,13 @@ func _ready() -> void:
 	hud.tool_picked.connect(func(picked: String) -> void: tool = picked)
 	hud.give_away.connect(_give_away)
 	hud.card_closed.connect(_select.bind(null))
+	hud.next_fish.connect(_select_next)
 	tank.said.connect(hud.say)
 	tank.discovered.connect(_on_discovered)
 	var saved: Variant = Save.data.get("tank", {})
 	tank.load_state(saved if saved is Dictionary else {})
-	_place_camera()
+	_focus = tank.centre()
+	_place_camera(1.0)
 
 	for arg in OS.get_cmdline_user_args():
 		if arg.begins_with("--speed="):
@@ -77,7 +95,9 @@ func _ready() -> void:
 
 
 func _process(delta: float) -> void:
-	_place_camera()
+	room.dress(tank.width)
+	room.set_lamp(tank.lamp_glow())
+	_place_camera(delta)
 	_scrub_sound = maxf(_scrub_sound - delta, 0.0)
 	if selected != null and (not is_instance_valid(selected) or selected.dead):
 		_select(null)
@@ -99,18 +119,36 @@ func save() -> void:
 
 
 ## The camera turns about the middle of the tank, far enough off that the whole tank fits
-## whichever way up the screen is.
-func _place_camera() -> void:
+## whichever way up the screen is; or, with a fish selected, about the fish, as close as you
+## like. It glides between the two.
+func _place_camera(delta: float) -> void:
 	var screen := _container.size
 	if screen.y < 1.0:
 		return
-	var half := tan(deg_to_rad(FOV) * 0.5)
-	var need_h := (tank.width * 0.5 + 0.35) / (half * screen.x / screen.y)
-	var need_v := (tank.height * 0.5 + 0.45) / half
-	var away := (maxf(need_h, need_v) + tank.depth * 0.5) * _zoom
+	var following := selected != null and is_instance_valid(selected)
+	var want_focus: Vector3 = selected.position if following else tank.centre()
+	var want_away := maxf(_fit() * _zoom, CLOSEST) if following else _fit() * _zoom
+	var ease := 1.0 - exp(-6.0 * delta)
+	_focus = _focus.lerp(want_focus, ease)
+	_away = want_away if _away <= 0.0 else lerpf(_away, want_away, ease)
 	var dir := Vector3(sin(_yaw) * cos(_pitch), sin(_pitch), cos(_yaw) * cos(_pitch))
-	camera.position = tank.centre() + dir * away
-	camera.look_at(tank.centre())
+	camera.position = _focus + dir * _away
+	camera.look_at(_focus)
+
+
+## How far off the camera has to be for the whole tank to fit on the screen.
+func _fit() -> float:
+	var screen := _container.size
+	var half := tan(deg_to_rad(FOV) * 0.5)
+	var need_h := (tank.width * 0.5 + 0.35) / (half * screen.x / maxf(screen.y, 1.0))
+	var need_v := (tank.height * 0.5 + 0.45) / half
+	return maxf(need_h, need_v) + tank.depth * 0.5
+
+
+## Brings the camera nearer (below 1) or takes it further off, within what is allowed now.
+func _zoom_by(factor: float) -> void:
+	var nearest := CLOSEST / _fit() if selected != null else ZOOM_IN
+	_zoom = clampf(_zoom * factor, nearest, ZOOM_OUT)
 
 
 # ------------------------------------------------------------------ input
@@ -129,7 +167,7 @@ func _input(event: InputEvent) -> void:
 			var at: Array = _touches.values()
 			var gap: float = (at[0] as Vector2).distance_to(at[1])
 			if _pinch > 0.0 and gap > 1.0:
-				_zoom = clampf(_zoom * _pinch / gap, 0.55, 1.3)
+				_zoom_by(_pinch / gap)
 			_pinch = gap
 			_dragging = true
 
@@ -137,9 +175,9 @@ func _input(event: InputEvent) -> void:
 func _on_pad(event: InputEvent) -> void:
 	if event is InputEventMouseButton:
 		if event.button_index == MOUSE_BUTTON_WHEEL_UP:
-			_zoom = clampf(_zoom - 0.05, 0.55, 1.3)
+			_zoom_by(0.9)
 		elif event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
-			_zoom = clampf(_zoom + 0.05, 0.55, 1.3)
+			_zoom_by(1.0 / 0.9)
 		elif event.button_index == MOUSE_BUTTON_LEFT:
 			if event.pressed:
 				_pressed = true
@@ -161,7 +199,7 @@ func _on_pad(event: InputEvent) -> void:
 				Sfx.play("scrub", randf_range(0.9, 1.2), -6.0)
 		else:
 			_yaw = clampf(_yaw - event.relative.x * 0.006, -1.25, 1.25)
-			_pitch = clampf(_pitch + event.relative.y * 0.004, 0.0, 0.65)
+			_pitch = clampf(_pitch + event.relative.y * 0.004, -0.12 if selected != null else 0.0, 0.65)
 
 
 ## Where a line from the eye through a point on the screen goes into the tank and comes out
@@ -189,9 +227,11 @@ func _tap(at: Vector2) -> void:
 			_select(fish)
 			Sfx.play("ui", 1.4)
 		return
-	_select(null)
+	# (a tap in the water leaves the fish in hand selected, so it can be fed while followed;
+	# a tap outside the tank lets it go)
 	var through := _through_tank(at)
 	if through.is_empty():
+		_select(null)
 		return
 	if tool == "feed":
 		var mid := (through[0] + through[1]) * 0.5
@@ -204,9 +244,30 @@ func _tap(at: Vector2) -> void:
 		Sfx.play("tap")
 
 
+## Takes a fish in hand (null lets go). The camera follows the fish in hand, and comes in
+## close to it the first time; letting go takes it back to where it was.
 func _select(fish: Node) -> void:
+	if fish != null and selected == null:
+		_zoom_before = _zoom
+		_zoom = FOLLOW_FROM / _fit()
+	elif fish == null and selected != null:
+		_zoom = _zoom_before
+		_pitch = maxf(_pitch, 0.0)
 	selected = fish
 	hud.show_fish(fish)
+
+
+## Steps to the next living fish (or the one before: -1).
+func _select_next(step: int) -> void:
+	var living: Array[Node] = []
+	for f in tank.fish:
+		if not f.dead:
+			living.append(f)
+	if living.is_empty():
+		return
+	var at := living.find(selected)
+	_select(living[posmod(at + step, living.size())] if at >= 0 else living[0])
+	Sfx.play("ui", 1.4)
 
 
 func _give_away(fish: Node) -> void:

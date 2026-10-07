@@ -13,9 +13,11 @@ wide screen or a tall one.
 | Feed (FEED tool) | Click in the water | Tap in the water |
 | Scrub algae (SCRUB tool) | Drag across the glass | Drag across the glass |
 | Tap the glass (SCRUB tool) | Click the glass: nearby fish bolt | Tap the glass |
-| Look at a fish | Click it | Tap it |
+| Follow a fish | Click it: the camera goes with it, and can come right up to it | Tap it |
+| Next fish, or the one before | The < and > buttons on its card | The same |
+| Let it go | CLOSE on its card, or click outside the tank | The same |
 | Net out a dead fish | Click it | Tap it |
-| Turn the tank | Drag (anywhere, with FEED) | Drag |
+| Turn the tank, or turn about the fish being followed | Drag (anywhere, with FEED) | Drag |
 | Zoom | Wheel | Pinch |
 
 Along the bottom: FEED and SCRUB pick the tool, LAMP turns the light on and off, WATER changes
@@ -75,13 +77,14 @@ PRACTICE TICKETS. Add `?tickets=500` to the address (or run with `-- --tickets=5
 |---|---|
 | `scripts/main.gd` | the frame: low-res render target, camera, what a tap or drag does, saving |
 | `scripts/tank/tank.gd` | the tank: its meshes, the water, food, eggs, breeding, snails and shrimps |
+| `scripts/tank/room.gd` | the room: a shelf unit with a slot for each of three tanks (only the middle one is used yet), the wall, the room's own dim light |
 | `scripts/tank/fish.gd` | one fish: swimming, hunger, health, growing |
 | `scripts/tank/species.gd` | every kind of fish, what each looks like and which pairs make which |
 | `scripts/tank/fish_mesh.gd` | builds a fish's model from its `look` |
 | `scripts/tank/props.gd` | plants, rocks, ornaments, gear and the small things |
 | `scripts/ui/` | the HUD, the shop and fish-dex sheets, the flat fish pictures, the UI kit |
 | `scripts/autoload/` | the save (`user://aquarium.json`), tickets, and sound effects (synthesized at start) |
-| `shaders/` | PS1 vertex snap, fish wag, the glass (water colour and algae), dither post-process |
+| `shaders/` | PS1 vertex snap, fish wag, the water (the glass with its algae, the far end with its shafts of light, the surface, and the net of light on everything under it), dither post-process |
 
 Adding a fish is one entry in `Species.LIST` (and its id in `ORDER`); give it a `price` to
 sell it or a line in `CROSSES` to breed it. The numbers that set how hard the tank is to keep

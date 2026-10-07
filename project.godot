@@ -47,3 +47,7 @@ psx_wobble={
 "type": "float",
 "value": 0.3
 }
+tank_lamp={
+"type": "float",
+"value": 1.0
+}

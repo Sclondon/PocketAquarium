@@ -11,7 +11,8 @@ extends Node3D
 ## Algae grows on the glass in the light, faster in dirty water; snails graze it and it can be
 ## scrubbed off. Fish are harmed by too little oxygen or too much waste (see fish.gd).
 ##
-## The origin is the middle of the tank's floor; the tank is `width` (x) by `height` by `depth`.
+## It lights itself: a lamp in the hood over the water (see `lamp_glow`), which room.gd dims
+## the room by. The origin is the middle of the tank's floor; the tank is `width` (x) by `height` by `depth`.
 
 ## A kind of fish was seen for the first time.
 signal discovered(species: String)
@@ -85,9 +86,12 @@ var _shell: Node3D
 var _life: Node3D
 var _mat: ShaderMaterial
 var _plant_mat: ShaderMaterial
+var _dry: ShaderMaterial
 var _glass: ShaderMaterial
-var _light: DirectionalLight3D
-var _env: Environment
+var _back: ShaderMaterial
+var _top: ShaderMaterial
+var _hood: StandardMaterial3D
+var _light: OmniLight3D
 var _bubbles: MultiMeshInstance3D
 var _bubble_from := Vector3.ZERO
 var _foods: Array[Dictionary] = []
@@ -107,24 +111,28 @@ var _lamp := 1.0
 func _ready() -> void:
 	_mat = ShaderMaterial.new()
 	_mat.shader = preload("res://shaders/psx.gdshader")
+	_mat.set_shader_parameter("wet", 1.0)
 	_plant_mat = ShaderMaterial.new()
 	_plant_mat.shader = preload("res://shaders/psx.gdshader")
+	_plant_mat.set_shader_parameter("wet", 1.0)
 	_plant_mat.set_shader_parameter("sway", 1.0)
+	_dry = ShaderMaterial.new()
+	_dry.shader = preload("res://shaders/psx.gdshader")
 	_glass = ShaderMaterial.new()
 	_glass.shader = preload("res://shaders/glass.gdshader")
+	_back = ShaderMaterial.new()
+	_back.shader = preload("res://shaders/backdrop.gdshader")
+	_top = ShaderMaterial.new()
+	_top.shader = preload("res://shaders/surface.gdshader")
+	_hood = StandardMaterial3D.new()
+	_hood.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	_flake = Props.flake()
 	_egg = Props.egg()
 
-	_env = Environment.new()
-	_env.background_mode = Environment.BG_COLOR
-	_env.background_color = Color(0.93, 0.86, 0.7)
-	_env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	_env.ambient_light_color = Color(0.85, 0.9, 1.0)
-	var we := WorldEnvironment.new()
-	we.environment = _env
-	add_child(we)
-	_light = DirectionalLight3D.new()
-	_light.rotation = Vector3(-1.05, 0.5, 0.0)
+	# the lamp in the hood: it lights the shelf round the tank as well as what is in it
+	_light = OmniLight3D.new()
+	_light.light_color = Color(0.8, 0.95, 1.0)
+	_light.omni_attenuation = 0.4
 	add_child(_light)
 
 	_life = Node3D.new()
@@ -310,28 +318,39 @@ func rebuild() -> void:
 	var hw := width * 0.5
 	var hd := depth * 0.5
 
-	# the room: a desk under the tank and a wall behind it
-	var mb := MB.new()
-	Props.box(mb, Vector3(0.0, -0.2, 0.0), Vector3(width + 4.0, 0.2, depth + 2.2), Color(0.8, 0.58, 0.38), rng, 0.0)
-	mb.quad(Vector3(-9.0, -0.3, -hd - 1.1), Vector3(9.0, -0.3, -hd - 1.1), Vector3(9.0, 7.0, -hd - 1.1),
-			Vector3(-9.0, 7.0, -hd - 1.1), Color(0.93, 0.86, 0.7), Vector3.BACK)
-	# a skirting of colour along the wall, and the picture stuck on the back of the tank
-	mb.quad(Vector3(-9.0, 0.5, -hd - 1.09), Vector3(9.0, 0.5, -hd - 1.09), Vector3(9.0, 0.62, -hd - 1.09),
-			Vector3(-9.0, 0.62, -hd - 1.09), Color(0.85, 0.4, 0.3), Vector3.BACK)
-	for i in 4:
-		var y0 := height * i / 4.0
-		var y1 := height * (i + 1) / 4.0
-		mb.quad(Vector3(-hw, y0, -hd + 0.004), Vector3(hw, y0, -hd + 0.004), Vector3(hw, y1, -hd + 0.004),
-				Vector3(-hw, y1, -hd + 0.004), Color(0.12, 0.42, 0.62).lerp(Color(0.45, 0.85, 0.95), i / 3.0), Vector3.BACK)
-	# the frame: a base, a rim round the top and a post at each corner
+	# the frame: a base, a rim round the top, a post at each corner, and the hood with its lamp
+	var frame := MB.new()
 	var trim := Color(0.24, 0.26, 0.33)
-	Props.box(mb, Vector3(0.0, -0.05, 0.0), Vector3(width + 0.1, 0.1, depth + 0.1), trim)
+	Props.box(frame, Vector3(0.0, -0.05, 0.0), Vector3(width + 0.1, 0.1, depth + 0.1), trim)
 	for sz: float in [-1.0, 1.0]:
-		Props.box(mb, Vector3(0.0, height, sz * hd), Vector3(width + 0.08, 0.05, 0.05), trim)
+		Props.box(frame, Vector3(0.0, height, sz * hd), Vector3(width + 0.08, 0.05, 0.05), trim)
 	for sx: float in [-1.0, 1.0]:
-		Props.box(mb, Vector3(sx * hw, height, 0.0), Vector3(0.05, 0.05, depth + 0.08), trim)
+		Props.box(frame, Vector3(sx * hw, height, 0.0), Vector3(0.05, 0.05, depth + 0.08), trim)
 		for sz: float in [-1.0, 1.0]:
-			Props.box(mb, Vector3(sx * hw, height * 0.5, sz * hd), Vector3(0.035, height, 0.035), trim)
+			Props.box(frame, Vector3(sx * hw, height * 0.5, sz * hd), Vector3(0.035, height, 0.035), trim)
+	Props.box(frame, Vector3(0.0, height + 0.08, -hd * 0.25), Vector3(width * 0.94, 0.09, depth * 0.4), Color(0.13, 0.14, 0.18))
+	if gear.has("filter"):
+		Props.filter_box(frame, Vector3(-hw + 0.35, height - 0.08, -hd - 0.09), 0.5)
+	_shell.add_child(_instance(frame.build(), _dry))
+	var strip := MeshInstance3D.new()
+	var strip_mesh := PlaneMesh.new()
+	strip_mesh.size = Vector2(width * 0.88, depth * 0.3)
+	strip_mesh.flip_faces = true
+	strip.mesh = strip_mesh
+	strip.material_override = _hood
+	strip.position = Vector3(0.0, height + 0.03, -hd * 0.25)
+	_shell.add_child(strip)
+	_light.position = Vector3(0.0, height + 0.3, hd * 0.3)
+	_light.omni_range = width * 1.5 + 3.5
+	# the far end of the water, on the back pane (see backdrop.gdshader)
+	var far := MB.new()
+	far.quad(Vector3(-hw, 0.0, -hd + 0.004), Vector3(hw, 0.0, -hd + 0.004), Vector3(hw, height, -hd + 0.004),
+			Vector3(-hw, height, -hd + 0.004), Color.WHITE, Vector3.BACK, Vector2(0, 0), Vector2(width, 0),
+			Vector2(width, height), Vector2(0, height))
+	_shell.add_child(_instance(far.build(), _back))
+	_back.set_shader_parameter("level", water_level)
+
+	var mb := MB.new()
 	# gravel
 	var nx := int(width * 6.0)
 	var nz := int(depth * 6.0)
@@ -359,8 +378,6 @@ func rebuild() -> void:
 	_bubble_from = _on_floor(hw - 0.2, -hd + 0.18)
 	if gear.has("pump"):
 		Props.air_stone(mb, _bubble_from, height)
-	if gear.has("filter"):
-		Props.filter_box(mb, Vector3(-hw + 0.35, height - 0.08, -hd - 0.09), 0.5)
 	_shell.add_child(_instance(mb.build(), _mat))
 
 	var greens := MB.new()
@@ -388,13 +405,10 @@ func rebuild() -> void:
 	var top := MeshInstance3D.new()
 	var sheet := PlaneMesh.new()
 	sheet.size = Vector2(width - 0.02, depth - 0.02)
-	var top_mat := StandardMaterial3D.new()
-	top_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	top_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	top_mat.cull_mode = BaseMaterial3D.CULL_DISABLED
-	top_mat.albedo_color = Color(0.8, 0.93, 1.0, 0.28)
-	sheet.material = top_mat
+	sheet.subdivide_width = 16
+	sheet.subdivide_depth = 8
 	top.mesh = sheet
+	top.material_override = _top
 	top.position.y = water_level
 	_shell.add_child(top)
 	_bubbles.visible = gear.has("pump")
@@ -714,15 +728,23 @@ func _lay(species: String, x: float, z: float, egg_age: float) -> void:
 	_eggs.append({"node": node, "age": egg_age, "species": species})
 
 
+## How brightly the lamp is lit, 0 to 1 (it fades on and off).
+func lamp_glow() -> float:
+	return _lamp
+
+
 ## The lamp, the colour of the water, the algae and the bubbles.
 func _step_looks(light: float) -> void:
-	_light.light_energy = lerpf(0.1, 1.1, _lamp)
-	_env.ambient_light_energy = lerpf(0.2, 1.0, _lamp)
-	_env.background_color = Color(0.93, 0.86, 0.7) * lerpf(0.06, 0.8, _lamp)
-	_glass.set_shader_parameter("water", CLEAN_WATER.lerp(FOUL_WATER, waste))
+	_light.light_energy = 4.0 * _lamp
+	_hood.albedo_color = Color(0.9, 0.98, 1.0) * lerpf(0.08, 1.0, _lamp)
+	RenderingServer.global_shader_parameter_set("tank_lamp", lerpf(0.12, 1.0, _lamp))
+	var colour := CLEAN_WATER.lerp(FOUL_WATER, waste)
+	for mat: ShaderMaterial in [_glass, _back, _top]:
+		mat.set_shader_parameter("water", colour)
+		mat.set_shader_parameter("light", lerpf(0.3, 1.0, light))
+	_back.set_shader_parameter("murk", waste)
 	_glass.set_shader_parameter("murk", waste)
 	_glass.set_shader_parameter("algae", algae)
-	_glass.set_shader_parameter("light", lerpf(0.35, 1.0, light))
 	if not _bubbles.visible:
 		return
 	var mm := _bubbles.multimesh

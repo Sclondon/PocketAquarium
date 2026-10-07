@@ -232,3 +232,50 @@ static func egg() -> ArrayMesh:
 	rng.seed = 5
 	blob(mb, Vector3(0.0, 0.035, 0.0), Vector3(0.035, 0.035, 0.035), rng, glow(Color(1.0, 0.9, 0.7), 0.4), 6, 4, 0.05, 0.02)
 	return mb.build()
+
+
+# ------------------------------------------------------------------ the room
+
+## A row of books standing on a shelf, with one leaning at the end.
+static func books(mb: MB, at: Vector3, rng: RandomNumberGenerator) -> void:
+	var covers := [Color(0.6, 0.2, 0.2), Color(0.2, 0.35, 0.5), Color(0.75, 0.6, 0.3), Color(0.25, 0.4, 0.3), Color(0.45, 0.3, 0.5)]
+	var x := 0.0
+	for i in 6:
+		var thick := rng.randf_range(0.06, 0.12)
+		var tall := rng.randf_range(0.5, 0.75)
+		var lean := Basis(Vector3.BACK, -0.25) if i == 5 else Basis.IDENTITY
+		box(mb, at + Vector3(x + thick * 0.5 + (0.09 if i == 5 else 0.0), tall * 0.5, 0.0), Vector3(thick, tall, 0.45),
+				covers[rng.randi() % covers.size()], rng, 0.0, lean)
+		x += thick + 0.008
+
+
+## A plant in a clay pot, with leaves that hang over the side.
+static func pot_plant(mb: MB, at: Vector3, rng: RandomNumberGenerator) -> void:
+	frustum(mb, at, at + Vector3(0.0, 0.3, 0.0), 0.14, 0.2, 7, Color(0.7, 0.38, 0.25), true, rng)
+	for i in 9:
+		var a := TAU * i / 9.0 + rng.randf_range(-0.2, 0.2)
+		var out := Vector3(cos(a), 0.0, sin(a))
+		blade(mb, at + Vector3(0.0, 0.28, 0.0) + out * 0.05, out, rng.randf_range(0.35, 0.6), 0.07, 0.9, 1.1,
+				Color(0.2, 0.5, 0.25), rng, 4)
+
+
+## A leaf that arches out from `base` along `dir`, rising and then drooping.
+static func blade(mb: MB, base: Vector3, dir: Vector3, length: float, width: float, lift: float,
+		droop: float, col: Color, rng: RandomNumberGenerator, segs := 3) -> void:
+	var across := dir.cross(Vector3.UP).normalized()
+	var prev_l := base
+	var prev_r := base
+	for k in segs:
+		var t := float(k + 1) / segs
+		var p := base + dir * length * t + Vector3.UP * (lift * t - droop * t * t) * length
+		var w := width * sin(PI * minf(t, 0.95))
+		mb.quad(prev_l, prev_r, p + across * w, p - across * w, vary(col, rng, 0.05), Vector3.UP)
+		prev_l = p - across * w
+		prev_r = p + across * w
+
+
+## A tin of fish food.
+static func tin(mb: MB, at: Vector3, rng: RandomNumberGenerator) -> void:
+	frustum(mb, at, at + Vector3(0.0, 0.3, 0.0), 0.13, 0.13, 8, Color(0.85, 0.7, 0.2), true, rng)
+	frustum(mb, at + Vector3(0.0, 0.3, 0.0), at + Vector3(0.0, 0.34, 0.0), 0.14, 0.14, 8, Color(0.75, 0.2, 0.2), true)
+	frustum(mb, at + Vector3(0.0, 0.1, 0.0), at + Vector3(0.0, 0.2, 0.0), 0.134, 0.134, 8, Color(0.2, 0.45, 0.7), false)
