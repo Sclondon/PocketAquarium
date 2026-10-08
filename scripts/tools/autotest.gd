@@ -248,6 +248,16 @@ func _shots() -> void:
 	await _settle(3.0)
 	await _shot("2d_from_the_hand")
 	tank.offer(null)
+	tank.live_food = true
+	for f in tank.fish:
+		if Species.habit(f.species, "hunts"):
+			f.hunger = 0.9
+			tank.drop_food(f.position.x, f.position.z)
+	tank.live_food = false
+	await _settle(1.2)
+	await _shot("2g_live_food")
+	await _settle(6.0)
+	print("hunted: ", tank.seen.get("hunted", 0))
 	main.hud.page.show_page(tank.fish[2])
 	await _settle(0.5)
 	await _shot("2e_its_page")
@@ -395,7 +405,14 @@ func _homes() -> void:
 					var f = t.add_fish(id)
 					f.buddy.bond = 0.5
 		main.look_at_slot(4)
-		await _settle(5.0)
+		await _settle(3.5)
+		if not t.is_wet():
+			# (crickets, for the ones on dry land)
+			for f in t.fish:
+				f.hunger = 0.2
+			for i in 4:
+				t.drop_food(-0.6 + 0.4 * i, 0.3)
+		await _settle(1.5)
 		await _shot("home_%s" % kind)
 		if not t.fish.is_empty():
 			main.call("_select", t.fish[t.fish.size() - 1])

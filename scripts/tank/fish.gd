@@ -255,7 +255,7 @@ func _swim(delta: float) -> void:
 	var feeding := false
 	if hunger > PECKISH and doing != "fleeing" and not Species.habit(species, "pest") and not Species.habit(species, "grazes"):
 		# (only one that is used to the keeper will take food from the keeper's fingers)
-		var food: Dictionary = tank.nearest_food(position, buddy.stage() == "new")
+		var food: Dictionary = tank.nearest_food(position, buddy.stage() == "new", Species.habit(species, "hunts"))
 		if not food.is_empty():
 			feeding = true
 			doing = "feeding"
@@ -266,6 +266,10 @@ func _swim(delta: float) -> void:
 					buddy.fed()
 					buddy.note("Ate from your fingers")
 					tank.notice("ate from the hand", self)
+				if food.get("live", false) and Species.habit(species, "hunts"):
+					buddy.fed()
+					buddy.note("Hunted down its dinner")
+					tank.notice("hunted", self)
 				tank.eat(food)
 				life.eat()
 				buddy.fed()
@@ -731,7 +735,7 @@ func _roam(delta: float) -> void:
 	_busy = maxf(_busy - delta, 0.0)
 	var feeding := false
 	if hunger > PECKISH and doing != "fleeing" and not Species.habit(species, "pest") and not Species.habit(species, "grazes"):
-		var food: Dictionary = tank.nearest_food(position, buddy.stage() == "new")
+		var food: Dictionary = tank.nearest_food(position, buddy.stage() == "new", Species.habit(species, "hunts"))
 		if not food.is_empty() and food.landed:
 			feeding = true
 			doing = "feeding"
@@ -739,6 +743,10 @@ func _roam(delta: float) -> void:
 			_rest = 0.0
 			_target = food.node.position
 			if position.distance_to(_target) < reach() + 0.06:
+				if food.get("live", false) and Species.habit(species, "hunts"):
+					buddy.fed()
+					buddy.note("Hunted down its dinner")
+					tank.notice("hunted", self)
 				tank.eat(food)
 				life.eat()
 				buddy.fed()

@@ -151,6 +151,9 @@ var _foods: Array[Dictionary] = []
 var _eggs: Array[Dictionary] = []
 var _critters: Array[Dictionary] = []
 var _flake: ArrayMesh
+var _bugs: Array[ArrayMesh] = []
+## Whether the food being given is alive (water fleas; on dry land it is always crickets).
+var live_food := false
 var _egg: ArrayMesh
 var _rng := RandomNumberGenerator.new()
 ## While catching up on time away nothing is announced; what happened is counted instead.
@@ -190,6 +193,7 @@ func _ready() -> void:
 	_hood = StandardMaterial3D.new()
 	_hood.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	_flake = Props.flake()
+	_bugs = [Props.bug(false), Props.bug(true)]
 	_egg = Props.egg()
 
 	# the lamp in the hood: it lights the shelf round the tank as well as what is in it
@@ -685,6 +689,18 @@ func drop_food(x: float, z: float) -> void:
 		# (a colony is fed by clouding the water, not by the flake)
 		swarm.feed()
 		return
+	if live_food or not is_wet():
+		for i in 2:
+			if _foods.size() >= MAX_FOOD:
+				return
+			var bug := _instance(_bugs[0 if is_wet() else 1], _mat)
+			var box: AABB = swim_box(0.08) if is_wet() else walk_box("walk")
+			bug.position = Vector3(x + _rng.randf_range(-0.1, 0.1), box.end.y if is_wet() else 0.0, z + _rng.randf_range(-0.1, 0.1)).clamp(box.position, box.end)
+			if not is_wet():
+				bug.position.y = floor_y(bug.position.x, bug.position.z) + 0.01
+			_life.add_child(bug)
+			_foods.append({"node": bug, "age": 0.0, "spin": 0.0, "landed": not is_wet(), "live": true, "vel": Vector3.ZERO, "turn": 0.0})
+		return
 	for i in 3:
 		if _foods.size() >= MAX_FOOD:
 			return
@@ -852,13 +868,16 @@ func grow() -> void:
 ## The nearest flake of food to a place ({} when there is none).
 ## The food nearest a place (empty if there is none). An animal that will not come to the
 ## keeper's hand (`wary`) does not count what the keeper is holding out.
-func nearest_food(at: Vector3, wary := false) -> Dictionary:
+func nearest_food(at: Vector3, wary := false, hunter := false) -> Dictionary:
 	var best := {}
 	var best_d := INF
 	for food in _foods:
 		if wary and food.get("held", false):
 			continue
 		var d := at.distance_squared_to(food.node.position)
+		# (to one that hunts, something alive is worth going three times as far for)
+		if hunter and food.get("live", false):
+			d /= 9.0
 		if d < best_d:
 			best = food
 			best_d = d
@@ -1050,6 +1069,9 @@ func _step_water(dt: float) -> void:
 
 func _step_food(delta: float) -> void:
 	for food in _foods.duplicate():
+		if food.get("live", false):
+			_step_live(food, delta)
+			continue
 		var node: MeshInstance3D = food.node
 		if food.get("held", false):
 			# (in the keeper's fingers: it turns a little, and stays where it is held)
@@ -1072,6 +1094,32 @@ func _step_food(delta: float) -> void:
 				_foods.erase(food)
 				node.queue_free()
 				waste = minf(waste + FOOD_ROT, 1.0)
+
+
+## Live food goes about on its own till something catches it: a water flea in fits and starts
+## through the water, a cricket in hops over the ground. One nobody catches is gone in the end.
+func _step_live(food: Dictionary, delta: float) -> void:
+	var node: MeshInstance3D = food.node
+	food.age += delta
+	food.turn -= delta
+	var wet := is_wet()
+	if food.turn <= 0.0:
+		food.turn = _rng.randf_range(0.5, 1.6) if wet else _rng.randf_range(1.2, 3.5)
+		var way := Vector3(_rng.randf_range(-1.0, 1.0), _rng.randf_range(-0.5, 0.5) if wet else 0.0, _rng.randf_range(-1.0, 1.0)).normalized()
+		food.vel = way * (_rng.randf_range(0.08, 0.2) if wet else _rng.randf_range(0.25, 0.5))
+	var vel: Vector3 = food.vel
+	food.vel = vel.move_toward(Vector3.ZERO, delta * (0.12 if wet else 0.35))
+	var box: AABB = swim_box(0.08) if wet else walk_box("walk")
+	var p: Vector3 = (node.position + vel * delta).clamp(box.position, box.end)
+	if not wet:
+		p.y = floor_y(p.x, p.z) + 0.01 + absf(sin(food.age * 11.0)) * 0.07 * clampf(vel.length() * 5.0, 0.0, 1.0)
+	node.position = p
+	if vel.length() > 0.01:
+		node.rotation.y = atan2(-vel.x, -vel.z)
+	if food.age > FOOD_KEEPS * 2.0:
+		_foods.erase(food)
+		node.queue_free()
+		waste = minf(waste + FOOD_ROT * 0.5, 1.0)
 
 
 func _add_critter_node(kind: String) -> void:

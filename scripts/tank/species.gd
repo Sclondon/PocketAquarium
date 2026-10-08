@@ -50,6 +50,7 @@ const LIST := {
 	"betta": {
 		"name": "Betta", "blurb": "All fins and attitude.",
 		"price": 120, "home": ["fresh"], "size": 0.9, "load": 0.8, "speed": 0.75,
+		"habits": {"hunts": true},
 		"look": {"back": Color(0.45, 0.05, 0.12), "side": Color(0.8, 0.1, 0.2), "belly": Color(0.9, 0.3, 0.35),
 			"fin": Color(0.35, 0.15, 0.7), "tip": Color(0.3, 0.75, 0.95), "tall": 0.85, "tail_len": 1.15, "spread": 1.25, "fork": 0.0,
 			"droop": 0.3, "dorsal": 0.5, "anal": 0.55, "sweep": 0.3},
@@ -64,6 +65,7 @@ const LIST := {
 	"puffer": {
 		"name": "Pufferfish", "blurb": "A ball with a face. Takes up a lot of room.",
 		"price": 200, "size": 0.95, "load": 1.3, "speed": 0.55,
+		"habits": {"hunts": true},
 		"look": {"back": Color(0.6, 0.55, 0.2), "side": Color(0.85, 0.8, 0.35), "belly": Color(0.98, 0.96, 0.85),
 			"fin": Color(0.9, 0.8, 0.4), "tall": 1.2, "wide": 1.7, "len": 0.7, "tail_len": 0.35, "spread": 0.7, "fork": 0.0,
 			"dorsal": 0.12, "eye": 1.7, "spots": 0.8, "spot": Color(0.3, 0.25, 0.08)},
@@ -107,7 +109,7 @@ const LIST := {
 	"axolotl": {
 		"name": "Axolotl", "blurb": "A salamander that never grew up, and smiles about it. It must be kept cold.",
 		"price": 220, "size": 1.5, "load": 2.0, "speed": 0.5, "home": ["cold"], "wants": {"warmth": [0.0, 0.35]},
-		"habits": {"gait": "walk", "stand": 0.0, "legs": [0.24, 0.0]},
+		"habits": {"hunts": true, "gait": "walk", "stand": 0.0, "legs": [0.24, 0.0]},
 		"look": {"back": Color(0.98, 0.76, 0.78), "side": Color(0.98, 0.76, 0.78), "belly": Color(1.0, 0.9, 0.9), "fin": Color(0.85, 0.2, 0.3)},
 	},
 	"mystery_snail": {
@@ -143,25 +145,25 @@ const LIST := {
 	"dart_frog": {
 		"name": "Blue Dart Frog", "blurb": "The bluest thing on the shelf, and bold with it: out all day, in plain view.",
 		"price": 180, "size": 1.0, "load": 1.0, "speed": 0.9, "home": ["vivarium"], "wants": {"humidity": [0.5, 1.0]},
-		"habits": {"gait": "hop", "stand": 0.0, "legs": [0.4, 0.0]},
+		"habits": {"hunts": true, "gait": "hop", "stand": 0.0, "legs": [0.4, 0.0]},
 		"look": {"back": Color(0.1, 0.4, 0.95), "side": Color(0.1, 0.4, 0.95), "belly": Color(0.45, 0.72, 1.0), "fin": Color(0.06, 0.12, 0.5)},
 	},
 	"horned_frog": {
 		"name": "Horned Frog", "blurb": "A mouth with a frog round it. Sits half buried and eats whatever passes. Keep it alone.",
 		"price": 150, "size": 1.7, "load": 3.0, "speed": 0.3, "home": ["vivarium"], "wants": {"humidity": [0.45, 1.0]},
-		"habits": {"gait": "hop", "stand": 0.0, "legs": [0.66, 0.0], "eats": 0.85},
+		"habits": {"hunts": true, "gait": "hop", "stand": 0.0, "legs": [0.66, 0.0], "eats": 0.85},
 		"look": {"back": Color(0.42, 0.72, 0.16), "side": Color(0.42, 0.72, 0.16), "belly": Color(0.95, 0.9, 0.7), "fin": Color(0.36, 0.14, 0.08)},
 	},
 	"crested_gecko": {
 		"name": "Crested Gecko", "blurb": "Eyelashes, sticky feet, and no eyelids: it licks its eyes clean. Up the glass after dark.",
 		"price": 160, "size": 1.5, "load": 1.5, "speed": 0.9, "home": ["vivarium"], "wants": {"humidity": [0.4, 1.0]},
-		"habits": {"gait": "climb", "stand": 0.0, "night": true},
+		"habits": {"hunts": true, "gait": "climb", "stand": 0.0, "night": true},
 		"look": {"back": Color(0.86, 0.46, 0.16), "side": Color(0.86, 0.46, 0.16), "belly": Color(0.95, 0.88, 0.72), "fin": Color(0.98, 0.9, 0.7)},
 	},
 	"leopard_gecko": {
 		"name": "Leopard Gecko", "blurb": "Spotted, smiling, and slow to be bothered. Wants its lamp on and a warm rock under it.",
 		"price": 140, "size": 1.6, "load": 1.5, "speed": 0.7, "home": ["arid"], "wants": {"warmth": [0.68, 1.0]},
-		"habits": {"gait": "walk", "stand": 0.0},
+		"habits": {"hunts": true, "gait": "walk", "stand": 0.0},
 		"look": {"back": Color(0.96, 0.8, 0.26), "side": Color(0.96, 0.8, 0.26), "belly": Color(0.98, 0.95, 0.86), "fin": Color(0.8, 0.7, 0.82)},
 	},
 	"sandfish": {
@@ -179,13 +181,13 @@ const LIST := {
 	"mudskipper": {
 		"name": "Mudskipper", "blurb": "A fish that walks, blinks, and puts its sail up at anyone who comes too close.",
 		"price": 200, "size": 1.5, "load": 1.5, "speed": 0.8, "home": ["palu"], "wants": {"salt": [0.1, 0.42], "humidity": [0.45, 1.0]},
-		"habits": {"gait": "hop", "stand": 0.0, "legs": [0.3, 0.0]},
+		"habits": {"hunts": true, "gait": "hop", "stand": 0.0, "legs": [0.3, 0.0]},
 		"look": {"back": Color(0.5, 0.4, 0.28), "side": Color(0.5, 0.4, 0.28), "belly": Color(0.86, 0.8, 0.66), "fin": Color(0.2, 0.55, 1.0)},
 	},
 	"seahorse": {
 		"name": "Lined Seahorse", "water": "sea", "blurb": "Swims standing up, with one small fin, to nowhere in particular. The father carries the young.",
 		"price": 260, "size": 1.3, "load": 1.0, "speed": 0.35, "home": ["sea"], "wants": {"salt": [0.38, 0.64]},
-		"habits": {"still": true},
+		"habits": {"hunts": true, "still": true},
 		"look": {"back": Color(0.85, 0.62, 0.2), "side": Color(0.85, 0.62, 0.2), "belly": Color(0.98, 0.9, 0.6), "fin": Color(0.95, 0.85, 0.55)},
 	},
 	"pinecone_fish": {
@@ -207,26 +209,27 @@ const LIST := {
 	"scarlet_badis": {
 		"name": "Scarlet Badis", "blurb": "A jewel the size of a thumbnail that stares its rivals down.",
 		"price": 80, "size": 0.4, "load": 0.3, "speed": 0.8, "home": ["fresh"],
+		"habits": {"hunts": true},
 		"look": {"back": Color(0.88, 0.14, 0.1), "side": Color(0.88, 0.14, 0.1), "belly": Color(0.75, 0.86, 0.95), "fin": Color(0.55, 0.8, 1.0)},
 	},
 	"pea_puffer": {
 		"name": "Pea Puffer", "blurb": "A pea with a tail and opinions. Hunts snails, and will have yours.",
-		"price": 110, "size": 0.5, "load": 0.5, "speed": 0.7, "home": ["fresh"], "habits": {"eats": 2.2, "prey": ["mystery_snail", "nerite", "pest_snail"]},
+		"price": 110, "size": 0.5, "load": 0.5, "speed": 0.7, "home": ["fresh"], "habits": {"hunts": true, "eats": 2.2, "prey": ["mystery_snail", "nerite", "pest_snail"]},
 		"look": {"back": Color(0.72, 0.72, 0.2), "side": Color(0.72, 0.72, 0.2), "belly": Color(0.98, 0.97, 0.9), "fin": Color(0.12, 0.2, 0.1)},
 	},
 	"butterflyfish": {
 		"name": "African Butterflyfish", "blurb": "Lies at the surface like a dead leaf, wings out, waiting for something to land.",
-		"price": 130, "size": 0.9, "load": 0.8, "speed": 0.5, "home": ["fresh"], "habits": {"level": "top", "wag": 0.05},
+		"price": 130, "size": 0.9, "load": 0.8, "speed": 0.5, "home": ["fresh"], "habits": {"hunts": true, "level": "top", "wag": 0.05},
 		"look": {"back": Color(0.42, 0.3, 0.18), "side": Color(0.72, 0.6, 0.4), "belly": Color(0.86, 0.8, 0.64), "fin": Color(0.16, 0.11, 0.08)},
 	},
 	"elephantnose": {
 		"name": "Elephantnose Fish", "blurb": "Feels through the sand with its chin, and finds its way by electricity. Out after dark.",
-		"price": 190, "size": 1.1, "load": 1.2, "speed": 0.8, "home": ["fresh"], "habits": {"night": true, "level": "bottom"},
+		"price": 190, "size": 1.1, "load": 1.2, "speed": 0.8, "home": ["fresh"], "habits": {"hunts": true, "night": true, "level": "bottom"},
 		"look": {"back": Color(0.16, 0.12, 0.14), "side": Color(0.16, 0.12, 0.14), "belly": Color(0.8, 0.74, 0.62), "fin": Color(0.24, 0.18, 0.2)},
 	},
 	"knifefish": {
 		"name": "Black Ghost Knifefish", "blurb": "One long fin, and it swims backward as easily as forward. Wants somewhere to hide by day.",
-		"price": 230, "size": 1.3, "load": 1.5, "speed": 0.7, "home": ["fresh"], "habits": {"night": true, "wag": 0.03},
+		"price": 230, "size": 1.3, "load": 1.5, "speed": 0.7, "home": ["fresh"], "habits": {"hunts": true, "night": true, "wag": 0.03},
 		"look": {"back": Color(0.05, 0.05, 0.07), "side": Color(0.05, 0.05, 0.07), "belly": Color(0.05, 0.05, 0.07), "fin": Color(0.96, 0.96, 0.92)},
 	},
 	"flashlight_fish": {
@@ -237,7 +240,7 @@ const LIST := {
 	"mantis_shrimp": {
 		"name": "Peacock Mantis Shrimp", "water": "sea", "blurb": "Every colour there is, and a punch that cracks shells. It will rearrange whatever you give it.",
 		"price": 280, "size": 1.0, "load": 1.5, "speed": 0.9, "home": ["sea"], "wants": {"salt": [0.38, 0.64]},
-		"habits": {"gait": "walk", "stand": 0.0, "legs": [0.3, 0.22], "eats": 0.7},
+		"habits": {"hunts": true, "gait": "walk", "stand": 0.0, "legs": [0.3, 0.22], "eats": 0.7},
 		"look": {"back": Color(0.15, 0.6, 0.3), "side": Color(0.15, 0.6, 0.3), "belly": Color(0.95, 0.45, 0.1), "fin": Color(0.2, 0.5, 0.95)},
 	},
 	"shell_dweller": {
@@ -253,25 +256,25 @@ const LIST := {
 	},
 	"bichir": {
 		"name": "Senegal Bichir", "blurb": "Older than the dinosaurs and looks it. Walks on its fins, gulps air, eats what fits.",
-		"price": 210, "size": 1.5, "load": 2.0, "speed": 0.7, "home": ["fresh"], "habits": {"level": "bottom", "wag": 0.2, "eats": 0.5, "night": true},
+		"price": 210, "size": 1.5, "load": 2.0, "speed": 0.7, "home": ["fresh"], "habits": {"hunts": true, "level": "bottom", "wag": 0.2, "eats": 0.5, "night": true},
 		"look": {"back": Color(0.5, 0.52, 0.4), "side": Color(0.5, 0.52, 0.4), "belly": Color(0.9, 0.88, 0.76), "fin": Color(0.6, 0.6, 0.48)},
 	},
 	"fire_newt": {
 		"name": "Fire-bellied Newt", "blurb": "Black above, and underneath the colour of a warning. Out of the water as often as in it.",
 		"price": 110, "size": 0.8, "load": 0.8, "speed": 0.6, "home": ["cold"], "wants": {"warmth": [0.0, 0.4]},
-		"habits": {"gait": "walk", "stand": 0.0, "legs": [0.16, 0.0]},
+		"habits": {"hunts": true, "gait": "walk", "stand": 0.0, "legs": [0.16, 0.0]},
 		"look": {"back": Color(0.1, 0.08, 0.07), "side": Color(0.1, 0.08, 0.07), "belly": Color(0.98, 0.42, 0.08), "fin": Color(0.98, 0.42, 0.08)},
 	},
 	"milk_frog": {
 		"name": "Amazon Milk Frog", "blurb": "Blue-grey and chocolate, with feet like suction cups. Up the glass, and loud after rain.",
 		"price": 170, "size": 1.4, "load": 1.2, "speed": 0.8, "home": ["vivarium"], "wants": {"humidity": [0.5, 1.0]},
-		"habits": {"gait": "climb", "stand": 0.0, "legs": [0.46, 0.0], "night": true},
+		"habits": {"hunts": true, "gait": "climb", "stand": 0.0, "legs": [0.46, 0.0], "night": true},
 		"look": {"back": Color(0.74, 0.82, 0.86), "side": Color(0.74, 0.82, 0.86), "belly": Color(0.92, 0.94, 0.92), "fin": Color(0.32, 0.2, 0.14)},
 	},
 	"glass_frog": {
 		"name": "Glass Frog", "blurb": "Green above. From underneath you can watch its heart beat.",
 		"price": 230, "size": 0.9, "load": 0.6, "speed": 0.8, "home": ["vivarium"], "wants": {"humidity": [0.6, 1.0]},
-		"habits": {"gait": "climb", "stand": 0.0, "legs": [0.36, 0.0], "night": true},
+		"habits": {"hunts": true, "gait": "climb", "stand": 0.0, "legs": [0.36, 0.0], "night": true},
 		"look": {"back": Color(0.62, 0.88, 0.3), "side": Color(0.62, 0.88, 0.3), "belly": Color(0.8, 0.95, 0.75), "fin": Color(0.9, 0.1, 0.12)},
 	},
 	"blue_tongue": {
@@ -283,7 +286,7 @@ const LIST := {
 	"chameleon": {
 		"name": "Veiled Chameleon", "blurb": "Eyes that go two ways at once, and a helmet. Drinks only drops off the leaves: keep it misted.",
 		"price": 260, "size": 1.9, "load": 2.5, "speed": 0.35, "home": ["vivarium"], "wants": {"humidity": [0.4, 1.0]},
-		"habits": {"gait": "climb", "stand": 0.0, "legs": [0.16, 0.26]},
+		"habits": {"hunts": true, "gait": "climb", "stand": 0.0, "legs": [0.16, 0.26]},
 		"look": {"back": Color(0.3, 0.72, 0.25), "side": Color(0.3, 0.72, 0.25), "belly": Color(0.75, 0.9, 0.6), "fin": Color(0.95, 0.85, 0.3)},
 	},
 	"pest_snail": {
@@ -498,7 +501,8 @@ const GUARDS := ["betta", "midnight_betta", "clownfish", "shark", "mudskipper", 
 
 ## One of a kind's ways (`habits` in its entry): `night` for one that hides by day and comes out
 ## in the dark; `level`, "top", "middle" or "bottom", for one that keeps to a part of the water;
-## `wag`, how far it bends as it swims; `croaks` for one that calls to its own kind; `grazes` for
+## `wag`, how far it bends as it swims; `croaks` for one that calls to its own kind; `hunts` for one that would sooner have
+## live food than flake, and is the better for catching it; `grazes` for
 ## one that lives on the green film and takes no food; `most`, the biggest colony its kind will
 ## breed up to, and `slow`, how many times longer than most it waits between broods.
 static func habit(id: String, what: String, otherwise: Variant = false) -> Variant:

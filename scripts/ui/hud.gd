@@ -351,6 +351,11 @@ func show_torch(red: bool, in_hand: bool) -> void:
 	(_tools["torch"] as Button).text = ("RED" if red else "WHITE") if in_hand else "TORCH"
 
 
+## The feed key says what it gives while it is in hand: picking it again changes it.
+func show_feed(live: bool, in_hand: bool) -> void:
+	(_tools["feed"] as Button).text = ("LIVE" if live else "FLAKE") if in_hand else "FEED"
+
+
 func pick_tool(tool: String) -> void:
 	for id: String in _tools:
 		var b: Button = _tools[id]

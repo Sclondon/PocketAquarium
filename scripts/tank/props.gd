@@ -262,6 +262,21 @@ static func flake() -> ArrayMesh:
 	return mb.build()
 
 
+## Something small and alive to be eaten: a water flea (pale, for the water) or a cricket.
+static func bug(cricket: bool) -> ArrayMesh:
+	var mb := MB.new()
+	if cricket:
+		var brown := Color(0.5, 0.35, 0.16)
+		box(mb, Vector3(0.0, 0.014, 0.0), Vector3(0.018, 0.016, 0.05), brown)
+		for sx: float in [-1.0, 1.0]:
+			box(mb, Vector3(sx * 0.016, 0.02, 0.012), Vector3(0.006, 0.03, 0.03), shade(brown, 0.7), null, 0.0, Basis(Vector3.RIGHT, 0.5))
+	else:
+		var pale := glow(Color(1.0, 0.82, 0.7), 0.5)
+		box(mb, Vector3.ZERO, Vector3(0.012, 0.012, 0.03), pale)
+		box(mb, Vector3(0.0, 0.0, -0.02), Vector3(0.03, 0.004, 0.008), shade(pale, 0.8))
+	return mb.build()
+
+
 static func egg() -> ArrayMesh:
 	var mb := MB.new()
 	var rng := RandomNumberGenerator.new()

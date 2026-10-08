@@ -56,6 +56,8 @@ var room: Room
 var hud: Hud
 var camera: Camera3D
 var tool := "feed"
+## Whether what the feed tool gives is alive: water fleas, for the ones that would sooner hunt.
+var feed_live := false
 ## Whether the torch is the red one (which the animals cannot see) or the white.
 var torch_red := true
 var selected: Node
@@ -474,6 +476,7 @@ func _tap(at: Vector2) -> void:
 			hud.say(tank.swarm.mood() if tank.swarm.food < 1.0 else "That is plenty. More will foul the water.")
 		elif not tank.anyone_hungry():
 			hud.say("Nobody is hungry. Food left on the bottom rots.")
+		tank.live_food = feed_live
 		tank.drop_food(mid.x, mid.z)
 		Sfx.play("plop", randf_range(0.9, 1.3))
 	elif tool == "scrub":
@@ -500,12 +503,16 @@ func _net(at: Vector2) -> int:
 func _pick_tool(picked: String) -> void:
 	if picked == "torch" and tool == "torch":
 		torch_red = not torch_red
+	if picked == "feed" and tool == "feed":
+		feed_live = not feed_live
+		hud.say("Live food: water fleas. The hunters will go a long way for one." if feed_live else "Flake.")
 	tool = picked
 	if picked == "mirror":
 		hud.say("Hold it to the glass, with the lamp on. You see the back of it: they see a stranger.")
 	elif picked == "net":
 		hud.say("Draw it through food left on the bottom, or tap a snail you did not ask for.")
 	hud.show_torch(torch_red, tool == "torch")
+	hud.show_feed(feed_live, tool == "feed")
 
 
 ## Puts the keeper's finger on the glass where the screen was touched, and tells the tank how
@@ -549,6 +556,8 @@ func _look_for_pages() -> void:
 			note("friends")
 		if t.seen.has("flared at the mirror") or t.seen.has("looked in the mirror"):
 			note("mirror")
+		if t.seen.has("hunted"):
+			note("hunt")
 		if t.seen.has("watched at night"):
 			note("night")
 		if t.torch != null and t.torch_red:

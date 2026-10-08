@@ -31,6 +31,10 @@ The loaches did not care. The loaches have never cared about anything."],
 			"Bought as a novelty and it has outlasted two tanks. I have not fed it since the spring before last. I have not opened it at all. The green on the glass is not dirt, it is dinner: leave some.
 
 Everything else on this shelf wants something from me. This wants a window."],
+	"hunt": ["Live food",
+			"Put a spoonful of water fleas in and the whole tank changed its mind about what sort of afternoon it was. The puffer went the length of the glass for one. The frogs want crickets and will take nothing that does not move.
+
+Flake keeps them alive. This is what they are for."],
 	"pests": ["Uninvited",
 			"There are snails in the tank that I did not buy. They came in on a plant, as eggs. One is nothing. Forty is the week after. They do no harm, and they clean the glass; but if you want them gone, the net takes them one at a time, and a pea puffer takes them faster."],
 	"cloth": ["The one on top",

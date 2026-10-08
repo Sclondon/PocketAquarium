@@ -19,6 +19,7 @@ wide screen or a tall one.
 | Say hello (HAND tool) | Hold on the glass: fish that know you, and curious ones, come to your finger; shy and new ones hide. Move it fast and they bolt | The same |
 | Hand feed (FEED tool) | Hold still on the glass: a pinch is held out there, and fish that are used to you take it from your fingers | The same |
 | Look in the dark (TORCH tool) | Hold on the glass to shine it in. Pick TORCH again to change it: RED, which the fish cannot see, or WHITE, which sends them into hiding | The same |
+| Give live food | Pick FEED again while it is in hand: it changes from FLAKE to LIVE (water fleas, which swim about till caught). The hunters (puffers, bettas, frogs, newts, geckos and so on) go three times as far for one and know you the better for it. On dry land food is always crickets | The same |
 | Clear up (NET tool) | Drag through food left on the bottom to take it out before it rots; click a snail you did not ask for to take it out | The same |
 | Show them a stranger (MIRROR tool) | Hold on the glass with the lamp on. Bold and grumpy animals square up to it, curious ones and ones that know you come and look, shy ones hide; they lose interest after a quarter of a minute | The same |
 | Scrub algae (SCRUB tool) | Drag across the glass | Drag across the glass |
