@@ -13,10 +13,11 @@ extends RefCounted
 const ORDER := ["guppy", "tetra", "goldfish", "angelfish", "betta", "clownfish", "puffer",
 		"kuhli", "glass_catfish", "hatchetfish", "sparkling_gourami",
 		"white_cloud", "hillstream_loach", "cave_tetra", "axolotl", "mystery_snail", "nerite", "cherry_shrimp", "amano_shrimp",
+		"pearl_danio", "scarlet_badis", "pea_puffer", "butterflyfish", "elephantnose", "knifefish",
 		"dart_frog", "horned_frog", "crested_gecko", "leopard_gecko", "sandfish", "vampire_crab", "mudskipper",
 		"glow_guppy", "sunset_fantail", "electric_angel", "royal_veiltail", "midnight_betta",
 		"harlequin", "tangerine", "bumblepuff", "aurora_koi", "ghost_angel", "moonfish",
-		"jellyfish", "seahorse", "pinecone_fish", "salmon", "tuna", "shark", "orca", "giant_squid", "blue_whale", "olm"]
+		"jellyfish", "seahorse", "pinecone_fish", "flashlight_fish", "mantis_shrimp", "salmon", "tuna", "shark", "orca", "giant_squid", "blue_whale", "olm"]
 
 const LIST := {
 	"guppy": {
@@ -190,6 +191,47 @@ const LIST := {
 		"price": 0, "size": 1.3, "load": 0.0, "speed": 0.4, "home": ["cave"],
 		"habits": {"gait": "walk", "stand": 0.0},
 		"look": {"back": Color(0.98, 0.84, 0.82), "side": Color(0.98, 0.84, 0.82), "belly": Color(1.0, 0.94, 0.92), "fin": Color(0.9, 0.25, 0.3)},
+	},
+	"pearl_danio": {
+		"name": "Celestial Pearl Danio", "blurb": "A night sky an inch long. Hides till it feels safe, then shows off.",
+		"price": 55, "size": 0.45, "load": 0.3, "speed": 1.1, "home": ["hard", "stream"],
+		"look": {"back": Color(0.1, 0.18, 0.32), "side": Color(0.1, 0.18, 0.32), "belly": Color(0.9, 0.3, 0.12), "fin": Color(0.9, 0.3, 0.12)},
+	},
+	"scarlet_badis": {
+		"name": "Scarlet Badis", "blurb": "A jewel the size of a thumbnail that stares its rivals down.",
+		"price": 80, "size": 0.4, "load": 0.3, "speed": 0.8, "home": ["fresh"],
+		"look": {"back": Color(0.88, 0.14, 0.1), "side": Color(0.88, 0.14, 0.1), "belly": Color(0.75, 0.86, 0.95), "fin": Color(0.55, 0.8, 1.0)},
+	},
+	"pea_puffer": {
+		"name": "Pea Puffer", "blurb": "A pea with a tail and opinions. Hunts snails, and will have yours.",
+		"price": 110, "size": 0.5, "load": 0.5, "speed": 0.7, "home": ["fresh"], "habits": {"eats": 1.15, "prey": ["mystery_snail", "nerite"]},
+		"look": {"back": Color(0.72, 0.72, 0.2), "side": Color(0.72, 0.72, 0.2), "belly": Color(0.98, 0.97, 0.9), "fin": Color(0.12, 0.2, 0.1)},
+	},
+	"butterflyfish": {
+		"name": "African Butterflyfish", "blurb": "Lies at the surface like a dead leaf, wings out, waiting for something to land.",
+		"price": 130, "size": 0.9, "load": 0.8, "speed": 0.5, "home": ["fresh"], "habits": {"level": "top", "wag": 0.05},
+		"look": {"back": Color(0.42, 0.3, 0.18), "side": Color(0.72, 0.6, 0.4), "belly": Color(0.86, 0.8, 0.64), "fin": Color(0.16, 0.11, 0.08)},
+	},
+	"elephantnose": {
+		"name": "Elephantnose Fish", "blurb": "Feels through the sand with its chin, and finds its way by electricity. Out after dark.",
+		"price": 190, "size": 1.1, "load": 1.2, "speed": 0.8, "home": ["fresh"], "habits": {"night": true, "level": "bottom"},
+		"look": {"back": Color(0.16, 0.12, 0.14), "side": Color(0.16, 0.12, 0.14), "belly": Color(0.8, 0.74, 0.62), "fin": Color(0.24, 0.18, 0.2)},
+	},
+	"knifefish": {
+		"name": "Black Ghost Knifefish", "blurb": "One long fin, and it swims backward as easily as forward. Wants somewhere to hide by day.",
+		"price": 230, "size": 1.3, "load": 1.5, "speed": 0.7, "home": ["fresh"], "habits": {"night": true, "wag": 0.03},
+		"look": {"back": Color(0.05, 0.05, 0.07), "side": Color(0.05, 0.05, 0.07), "belly": Color(0.05, 0.05, 0.07), "fin": Color(0.96, 0.96, 0.92)},
+	},
+	"flashlight_fish": {
+		"name": "Flashlight Fish", "water": "sea", "blurb": "Black, with a lamp under each eye that it blinks. Turn the light off to see it.",
+		"price": 240, "size": 0.7, "load": 0.6, "speed": 0.9, "home": ["sea"], "wants": {"salt": [0.38, 0.64]},
+		"look": {"back": Color(0.05, 0.05, 0.08), "side": Color(0.05, 0.05, 0.08), "belly": Color(0.05, 0.05, 0.08), "fin": Color(0.5, 0.75, 1.0)},
+	},
+	"mantis_shrimp": {
+		"name": "Peacock Mantis Shrimp", "water": "sea", "blurb": "Every colour there is, and a punch that cracks shells. It will rearrange whatever you give it.",
+		"price": 280, "size": 1.0, "load": 1.5, "speed": 0.9, "home": ["sea"], "wants": {"salt": [0.38, 0.64]},
+		"habits": {"gait": "walk", "stand": 0.0, "eats": 0.7},
+		"look": {"back": Color(0.15, 0.6, 0.3), "side": Color(0.15, 0.6, 0.3), "belly": Color(0.95, 0.45, 0.1), "fin": Color(0.2, 0.5, 0.95)},
 	},
 	"glow_guppy": {
 		"name": "Glow Guppy", "blurb": "A guppy that took the tetra's stripe and ran with it.",
@@ -385,9 +427,9 @@ static func hint(id: String) -> String:
 
 ## The kinds that keep together in a shoal, and sulk without their own kind.
 const SHOALS := ["tetra", "guppy", "glow_guppy", "salmon", "tuna", "glass_catfish", "hatchetfish", "kuhli", "white_cloud", "cave_tetra",
-		"cherry_shrimp"]
+		"cherry_shrimp", "pearl_danio", "flashlight_fish"]
 ## The kinds that keep a patch of the tank to themselves, whatever their temper.
-const GUARDS := ["betta", "midnight_betta", "clownfish", "shark", "mudskipper", "horned_frog", "vampire_crab"]
+const GUARDS := ["betta", "midnight_betta", "clownfish", "shark", "mudskipper", "horned_frog", "vampire_crab", "scarlet_badis", "mantis_shrimp"]
 
 
 ## One of a kind's ways (`habits` in its entry): `night` for one that hides by day and comes out

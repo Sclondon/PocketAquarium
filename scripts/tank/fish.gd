@@ -364,7 +364,9 @@ func _mind_the_others() -> void:
 		if gap < 0.25 + reach():
 			_meet(other)
 			# one with a mouth for it eats what is small enough to fit, when it is hungry
-			if hunger > Life.PECKISH and other.reach() < reach() * float(Species.habit(species, "eats", 0.0)) and _rng.randf() < 0.25:
+			var prey: Array = Species.habit(species, "prey", [])
+			if hunger > Life.PECKISH and other.reach() < reach() * float(Species.habit(species, "eats", 0.0)) \
+					and (prey.is_empty() or other.species in prey) and _rng.randf() < 0.25:
 				life.hunger = 0.0
 				buddy.note("Ate %s" % other.fish_name)
 				tank.eaten(other, self)
