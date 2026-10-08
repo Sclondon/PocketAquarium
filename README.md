@@ -1,9 +1,12 @@
 # Pocket Aquarium
 
-A shelf of small fish tanks to keep, for the Scareathon arcade. Feed the fish, keep the water
-alive, breed new kinds and fill the fish-dex. There is room on the shelf for three tanks, and
-any of them can be a magic salt water tank, which holds the sea: salmon, tuna, sharks, orcas,
-a giant squid, a blue whale. The shop takes the arcade's tickets.
+A shelf of small worlds to keep, at night, for the Scareathon arcade: tanks, jars and
+terrariums, each a pool of its own light in a dark room, and in them fish, shrimps, snails,
+frogs, lizards, a crab and a colony of sea monkeys. Every one of them is somebody: it has a
+name, a temper and its own opinion of you. Somebody kept the shelf before you. They left a
+notebook, and a tank under a cloth.
+
+The shop takes the arcade's tickets.
 
 Godot **4.7**, GL Compatibility. Open `project.godot` and press F5. It lays itself out for a
 wide screen or a tall one.
@@ -52,19 +55,18 @@ There are five ways to play it, and they all run at once:
   and will not eat; a day after, it is hungry; after nearly three days unfed it is starving,
   and three days of that kills it. Fry take a week to grow up. An unwell fish loses its colour.
 - **A toy.** Turn the tank, tap the glass, turn the lamp off, dress the gravel.
-- **A shelf.** It starts with one fresh water tank on the middle shelf. The shelves above and
-  below are empty: each will take another fresh water tank (200 tickets, with two guppies) or
-  a magic salt water tank (500, empty but for a frond of kelp). The tanks are kept apart: each
-  has its own water, gear and ornaments, and the shop sells for the one being looked at. Sea
-  life is sized to fit (a blue whale is about a metre long, in a tank two to four metres wide)
-  and otherwise lives by the same rules as the fish: it eats the same food, and two of a kind
-  may breed.
-- **A collection.** Eleven kinds of fresh water fish and seven of sea life are sold. Eleven more can only be bred, and breeding
-  is uncommon: a tank with two well-fed, healthy adults, good water and room to spare (no more
-  than seven tenths full, counting fry as grown) lays an egg about every three days, the egg
-  takes a day to hatch, and both parents then wait four days. Two of the same kind have another; the right two different kinds have something new
-  (`CROSSES` in `species.gd`), and very rarely any egg hatches a Moonfish. The fish-dex gives a
-  hint for each kind not yet seen.
+- **A shelf.** It starts with one blackwater tank on the middle shelf, which was the last
+  keeper's. The two shelves above and the two below are empty, and each will take any kind of
+  home (see Homes). The homes are kept apart: each has its own water or air, gear and
+  ornaments, and the shop sells for the one being looked at. The old sea animals of the first
+  game (a blue whale about a metre long, an orca, a shark) are still sold for the night sea.
+- **A collection.** Fifty-five kinds of animal: forty-three are sold, each for the homes it can
+  live in, eleven old ones can only be bred, and one is not for sale. Breeding is uncommon: a
+  home with two well-fed, healthy adults of a kind, good water and room to spare (no more than
+  seven tenths full, counting young as grown) lays an egg about every three days, the egg
+  takes a day to hatch, and both parents then wait four days. The old pet-shop fish also
+  cross with each other (`CROSSES` in `species.gd`), and very rarely one of their eggs hatches
+  a Moonfish. The book gives a hint for each kind not yet seen.
 - **An ecosystem.** The four gauges are oxygen, how clean the water is, how clear the glass is
   and how much room is left. Fish use oxygen and make waste, a little every day; food nobody
   eats rots into more after ten minutes, so do not overfeed. Plants make oxygen in the light
@@ -73,6 +75,58 @@ There are five ways to play it, and they all run at once:
   Two guppies and a plant look after themselves; a fully stocked tank without a filter needs
   its water changed every few days. Water past the red line harms the fish slowly at first
   and quickly at its worst.
+
+## Homes
+
+The shelf has five places, and the top of it a sixth that is taken. An empty place takes any
+of twelve kinds of home (`scripts/tank/kinds.gd`), and what is sold for each is listed with it:
+
+| Home | What it is | What has to be kept right |
+|---|---|---|
+| Blackwater tank | warm, soft, tea-coloured water: most of the odd fish | the water |
+| Hard water tank | clear and bright over pale stone | the water |
+| Stream tank | cool and fast, with a pump | the water |
+| Cold tank | still and chilled: the axolotl | the water |
+| Night sea tank | salt water in the dark | the water, and its salt |
+| Brine kit | sea monkeys, by the hundred, from a packet | salt, and a pinch of food |
+| Snail jar, shrimp jar | small, green and slow | the water |
+| Rainforest vivarium | frogs and a gecko, no water | how damp the air is: MIST it |
+| Arid terrarium | geckos and a skink under a heat lamp | the lamp left on |
+| Paludarium | half water, half mud: a mudskipper and a crab | salt, and damp |
+
+Salt creeps up as water dries off, till the water is changed. Air dries out till it is misted
+(the WATER button says MIST over dry land). A new tank's filter takes about four days to come
+alive, and until it has, the water fouls three times as fast: the FILTER gauge shows it. An
+animal in the wrong home says what is wrong on its card, and sickens slowly, over a week.
+
+Animals get about in their own ways: most swim, snails and the hillstream loach glide over
+the floor and up the back wall, shrimps, lizards and the crab walk, frogs and the mudskipper
+hop, and the crested gecko climbs. Some keep the night, and are only out with the lamp off.
+A horned frog or a mantis shrimp eats what is small enough; a pea puffer eats snails.
+
+Sea monkeys are not kept one by one. A brine kit holds a colony (`scripts/sim/swarm.gd`): the
+eggs hatch a day or two after the kit is set up, the young grow up if they are fed, and the
+grown ones lay. FEED clouds the water for them.
+
+## The book
+
+BOOK opens the book: its first half is every kind of animal, filled in as each is kept, and
+its second the notebook the last keeper left (`scripts/ui/notes.gd`). The notebook's pages
+turn up as the keeper does the thing each is about: feeds by hand, turns the lamps out, uses
+the red torch, buys a second tank, touches the cloth.
+
+The covered tank on top of the shelf can be touched at any time and uncovered only with
+every lamp out. What is under the cloth comes out from behind its rock for a keeper who has
+uncovered it three times, and is named on the fifth.
+
+## Breeding and trading in
+
+Two healthy, well-fed adults of a kind may lay an egg (the old pet-shop fish still cross with
+each other; nothing else does). Cherry shrimp are bred for colour: each has a depth of red,
+shown on its page (wild brown, cherry, sakura, fire red, painted fire red), and its young take
+after their parents, a little deeper or paler by chance. An animal hatched on the shelf can
+be traded in from its page for shop credit, more for a deeper red. Credit is spent before
+tickets on anything but a new home.
 
 ## Tickets
 
@@ -105,10 +159,11 @@ PRACTICE TICKETS. Add `?tickets=500` to the address (or run with `-- --tickets=5
 | `scripts/tank/tank.gd` | the tank: its meshes, the water, food, eggs, breeding, snails and shrimps |
 | `scripts/tank/room.gd` | the room: a shelf unit with a slot for each of three tanks (only the middle one is used yet), the wall, the room's own dim light |
 | `scripts/tank/fish.gd` | one fish: swimming, hunger, health, growing |
-| `scripts/tank/species.gd` | every kind of fish, what each looks like and which pairs make which |
+| `scripts/tank/species.gd` | every kind of animal: what it costs, which homes it lives in (`home`), what it wants there (`wants`), its ways (`habits`: how it gets about, whether it keeps the night, what it eats) and, for the old code-built fish, what it looks like and which pairs make which |
+| `scripts/tank/kinds.gd` | every kind of home: its size, water, light and what must be kept right in it |
 | `scripts/tank/fish_mesh.gd` | builds an animal's model from its `look`: smooth-skinned fish (and sharks and whales), squid and jellyfish |
-| `scripts/tank/models.gd`, `models/`, `art/` | the animals that have a model made in Blender: each is a script in `art/blender/` (they share `fishkit.py`, whose top says what every model must keep to), built by `tools/build_models.sh` into `art/generated/` with a turnaround sheet to look over, and copied to `models/` for the game. A model reworked by hand goes in `art/hand/` and is used instead. Only the betta has one yet |
-| `scripts/sim/` | the rules with no pictures attached, so tests can run years of them: the water (`water.gd`) and one animal's hunger, health and growth (`life.gd`) |
+| `scripts/tank/models.gd`, `models/`, `art/` | the animals that have a model made in Blender: each is a script in `art/blender/` (they share `fishkit.py`, whose top says what every model must keep to), built by `tools/build_models.sh` into `art/generated/` with a turnaround sheet to look over, and copied to `models/` for the game. A model reworked by hand goes in `art/hand/` and is used instead. Thirty-one animals have one; the old pet-shop fish and the big sea animals are still built in code, by `fish_mesh.gd` |
+| `scripts/sim/` | the rules with no pictures attached, so tests can run years of them: the water and its filter (`water.gd`), one animal's hunger, health and growth (`life.gd`), what makes it itself (`buddy.gd`: temper, bond, ties, colour) and a colony of sea monkeys (`swarm.gd`) |
 | `scripts/tank/props.gd` | plants, rocks, ornaments, gear and the small things |
 | `scripts/ui/` | the HUD, the shop and fish-dex sheets, the flat fish pictures, the UI kit |
 | `scripts/autoload/` | the save (`user://aquarium.json`, versioned: an older file is backed up to `aquarium.v1.json` and brought up to date), tickets, and sound effects (synthesized at start) |
@@ -125,7 +180,8 @@ arithmetic in `sim/water.gd`.
 ```
 godot --headless --path . -- --no-save --smoke          # months of tank time for four tanks (fed daily, fully stocked, left alone, salt water); prints how each went
 godot --path . -- --no-save --speed=1440                # play with the tank's clock run fast: a day a minute
-godot --path . -- --no-save --shots=C:/some/folder      # screenshots of both kinds of tank, each sea animal up close, and each sheet, wide and tall
+godot --path . -- --no-save --shots=C:/some/folder      # screenshots of the tanks, the tools at work, each sheet, the covered tank, wide and tall
+godot --path . -- --no-save --homes=C:/some/folder      # a screenshot of every kind of home with its animals in it
 godot --headless --path . --export-release "Web" build/index.html
 ```
 
