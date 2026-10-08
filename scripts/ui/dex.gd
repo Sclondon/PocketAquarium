@@ -79,4 +79,12 @@ func _show_notes() -> void:
 		words.add_theme_font_size_override("font_size", 17)
 		words.add_theme_color_override("font_color", Color(UiKit.PAPER, 0.92))
 		words.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		# (a wrapped label can come up a line short, so it is measured again once laid out and given a line to spare)
+		var measure := func() -> void:
+			if is_instance_valid(words):
+				var tall := (words.get_line_count() + 1) * (words.get_line_height() + 3.0)
+				if absf(words.custom_minimum_size.y - tall) > 0.5:
+					words.custom_minimum_size.y = tall
+		words.resized.connect(measure)
+		get_tree().create_timer(0.15).timeout.connect(measure)
 		body.add_child(words)

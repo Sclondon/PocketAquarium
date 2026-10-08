@@ -161,6 +161,8 @@ func setup() -> void:
 			row_break.visible = narrow
 		if _card != null:
 			_card.offset_bottom = -(bar.size.y + 22.0)
+		# (on a wide screen what is said goes in the gap along the top, clear of the tank; on a narrow one, under the gauges)
+		middle.offset_top = 118 if bar.size.x < 1040.0 else 16
 	bar.resized.connect(func() -> void: fit_bar.call_deferred())
 	bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	root.add_child(bar)
@@ -314,7 +316,7 @@ func _process(_delta: float) -> void:
 	# (salt reads full when it is just right, and falls as it creeps up)
 	_set_gauge("salt", 1.0 - absf(tank.salt - float(tank.about().get("salt", 0.0))) * 3.0, salty)
 	_set_gauge("damp", tank.humidity, tank.about().get("humid", false))
-	_set_gauge("room", 1.0 - tank.crowd() / tank.capacity(), tank.swarm == null)
+	_set_gauge("room", tank.crowd() / tank.capacity(), tank.swarm == null)
 	_set_gauge("swarm", tank.swarm.count() / 240.0 if tank.swarm != null else 0.0, tank.swarm != null)
 	_set_gauge("fed", minf(tank.swarm.food, 1.0) if tank.swarm != null else 0.0, tank.swarm != null)
 	# (the lamp's button is lit while the lamp is)
@@ -393,12 +395,12 @@ func say(text: String) -> void:
 	# (a long one is wrapped to fit a phone, and stays up long enough to read)
 	_toast.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_toast.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_toast.custom_minimum_size.x = minf(text.length() * 9.5, minf(get_viewport().get_visible_rect().size.x - 60.0, 900.0))
+	_toast.custom_minimum_size.x = minf(text.length() * 9.5, minf(get_viewport().get_visible_rect().size.x - 60.0, 760.0))
 	if _toast_tween != null:
 		_toast_tween.kill()
 	_toast_plate.modulate.a = 1.0
 	_toast_tween = create_tween()
-	_toast_tween.tween_interval(3.0 + _toast.text.length() * 0.045)
+	_toast_tween.tween_interval(2.2 + _toast.text.length() * 0.04)
 	_toast_tween.tween_property(_toast_plate, "modulate:a", 0.0, 0.8)
 
 

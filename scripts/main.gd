@@ -27,7 +27,7 @@ const SAVE_EVERY := 8.0
 const ZOOM_IN := 0.6
 const ZOOM_OUT := 1.7
 const CLOSEST := 0.3
-const FOLLOW_FROM := 1.0
+const FOLLOW_FROM := 0.75
 ## What a new keeper is told, a line at a time and half a minute apart, once each for good.
 const TIPS := [
 	"FEED, then tap the water. Hold your finger still on the glass to offer it by hand.",
@@ -326,7 +326,7 @@ func _place_camera(delta: float) -> void:
 	var want_away := maxf(_fit() * _zoom, _closest()) if following else _fit() * _zoom
 	if following:
 		# the card sits over the bottom of the screen, so the fish in hand is held above the middle
-		want_focus.y -= want_away * 0.1
+		want_focus.y -= want_away * 0.04
 	var ease := 1.0 - exp(-6.0 * delta)
 	_focus = _focus.lerp(want_focus, ease)
 	_away = want_away if _away <= 0.0 else lerpf(_away, want_away, ease)

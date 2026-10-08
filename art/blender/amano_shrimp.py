@@ -12,7 +12,7 @@ from shapes import shrimp
 
 kit = Kit("amano_shrimp")
 c = srgb(0.62, 0.7, 0.62)
-CLEAR, DOT, LINE, LEG = (c[0], c[1], c[2], 0.5), srgb(0.36, 0.14, 0.1), srgb(0.9, 0.9, 0.8), srgb(0.6, 0.66, 0.6)
+CLEAR, DOT, LINE, LEG = srgb(0.78, 0.86, 0.8), srgb(0.36, 0.14, 0.1), srgb(0.9, 0.9, 0.8), srgb(0.6, 0.66, 0.6)
 
 
 def shell(t, k):

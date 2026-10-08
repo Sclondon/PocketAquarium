@@ -31,11 +31,13 @@ func show_kind(id: String, is_known := true) -> void:
 	known = is_known
 	var picture := "res://models/%s_icon.png" % species
 	_art.texture = load(picture) if ResourceLoader.exists(picture) else null
-	_art.modulate = Color.WHITE if known else Color(0.0, 0.0, 0.0, 0.7)
+	_art.modulate = Color.WHITE if known else Color(0.02, 0.03, 0.05, 0.85)
 	queue_redraw()
 
 
 func _draw() -> void:
+	# (a plate behind it, so a dark animal shows on the dark card)
+	draw_style_box(UiKit.flat(Color(0.3, 0.35, 0.43, 0.55 if known else 0.3), Color.TRANSPARENT, 0, 6, 0), Rect2(Vector2.ZERO, size))
 	if _art.texture != null:
 		if not known:
 			draw_string(UiKit.serif(), size * 0.5 + Vector2(-6, 9), "?", HORIZONTAL_ALIGNMENT_LEFT, -1, 26, UiKit.PAPER)

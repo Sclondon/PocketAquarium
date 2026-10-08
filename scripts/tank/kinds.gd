@@ -68,7 +68,7 @@ const LIST := {
 		"name": "Night sea tank", "price": 500, "water": 0.92, "sizes": TANKS,
 		"blurb": "Salt water in the dark, and the things in it that make their own light.",
 		"water_colour": Color(0.1, 0.3, 0.9), "sand": Color(0.93, 0.89, 0.78), "coarse": 0.1, "air": Color(0.01, 0.015, 0.03),
-		"look": {"key": Color(0.7, 0.86, 1.0), "shadow": Color(0.12, 0.14, 0.42), "haze": Color(0.02, 0.05, 0.2),
+		"look": {"key": Color(0.7, 0.86, 1.0), "shadow": Color(0.22, 0.27, 0.58), "haze": Color(0.02, 0.05, 0.2),
 			"spill": Color(0.4, 0.55, 1.0), "ink": Color(0.3, 0.42, 0.8)},
 		"warm": 0.6, "salt": 0.5, "starter": [], "plants": 4,
 	},

@@ -671,6 +671,8 @@ func mood() -> String:
 		"hiding":
 			return "hiding from you"
 		"buried":
+			if position.distance_to(_target) > 0.35:
+				return "making for cover till dark"
 			return "buried till dark" if _gait == "swim" else "hidden away till dark"
 		"dived":
 			return "under the sand"
