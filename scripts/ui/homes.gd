@@ -37,7 +37,7 @@ func refresh() -> void:
 		var buy := UiKit.button(str(about.price), func() -> void:
 			wanted.emit(kind)
 			close(), Vector2(96, 46))
-		buy.disabled = int(about.price) > Tickets.balance
+		buy.disabled = not Tickets.can_pay(int(about.price), "tank:")
 		buy.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		row.add_child(buy)
 		body.add_child(row)

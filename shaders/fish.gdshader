@@ -20,6 +20,9 @@ uniform vec4 spot_color : source_color = vec4(0.05, 0.08, 0.1, 1.0);
 // A model made in Blender (see scripts/tank/models.gd): its colours are already linear, and
 // how much each part glows comes in its second UV.
 uniform bool modelled = false;
+// For a kind that is bred for its colour: how deep this one's is, 0 washed out to 1 as deep as
+// they come (below 0 for any other kind).
+uniform float grade = -1.0;
 
 varying vec3 v_world;
 varying vec3 v_local;
@@ -41,6 +44,10 @@ void fragment() {
 		discard;
 	}
 	vec3 col = modelled ? COLOR.rgb : srgb_to_linear(COLOR.rgb);
+	if (grade >= 0.0) {
+		vec3 washed = mix(vec3(dot(col, vec3(0.3, 0.5, 0.2))), col, 0.2) * vec3(1.0, 0.9, 0.75);
+		col = mix(washed, col * vec3(1.0, 0.8, 0.8), grade);
+	}
 	vec3 n = normalize(v_normal);
 	float lit = 1.0;
 	if (UV.y < 1.5) {

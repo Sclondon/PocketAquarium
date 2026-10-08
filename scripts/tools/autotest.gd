@@ -277,6 +277,17 @@ func _shots() -> void:
 	main.call("_touch_cover")
 	await _settle(1.0)
 	await _shot("6i_uncovered")
+	# and as it is to a keeper who has come back to it often enough
+	main.call("_touch_cover")
+	Save.data["cave"] = {"found": true, "lifted": 5}
+	await _settle(0.5)
+	main.call("_touch_cover")
+	await _settle(11.0)
+	await _shot("6j_olm")
+	main.hud.dex.open_notes()
+	await _settle(0.5)
+	await _shot("6k_notebook")
+	main.hud.dex.close()
 	tank.set_lamp(true)
 	sea.set_lamp(true)
 	await _settle(1.0)

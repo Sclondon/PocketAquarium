@@ -12,6 +12,7 @@ const Tank := preload("res://scripts/tank/tank.gd")
 const Room := preload("res://scripts/tank/room.gd")
 const Species := preload("res://scripts/tank/species.gd")
 const Kinds := preload("res://scripts/tank/kinds.gd")
+const Notes := preload("res://scripts/ui/notes.gd")
 const Hud := preload("res://scripts/ui/hud.gd")
 const Autotest := preload("res://scripts/tools/autotest.gd")
 
@@ -72,6 +73,10 @@ var _pinch := 0.0
 ## Whether the finger now down went down on the glass with the hand tool, and when it last
 ## moved (seconds).
 var _on_glass := false
+## How long the covered tank has been uncovered this time (seconds), and how long till the
+## notebook is next looked over for pages that have turned up.
+var _uncovered_for := 0.0
+var _notes_in := 1.0
 ## With the food in hand, a finger held still on the glass holds a pinch out there (see
 ## `Tank.offer`): when the finger went down, and whether it is holding food out now.
 var _pressed_when := 0.0
@@ -162,6 +167,28 @@ func _process(delta: float) -> void:
 	room.set_lamp(glow)
 	_place_camera(delta)
 	_scrub_sound = maxf(_scrub_sound - delta, 0.0)
+	_notes_in -= delta
+	if _notes_in <= 0.0:
+		_notes_in = 1.0
+		_look_for_pages()
+	# what is under the cloth comes out when it has been left in the dark a little, once the
+	# keeper has come back to it often enough
+	if room.is_uncovered():
+		_uncovered_for += delta
+		var lifted := int(Save.data.get("cave", {}).get("lifted", 0))
+		if lifted >= 3 and _uncovered_for > 4.0 and not room.olm_out:
+			room.show_olm(true)
+			if lifted >= 5:
+				note("olm")
+				if not dex.has("olm"):
+					dex["olm"] = true
+					_on_discovered("olm")
+			else:
+				note("pale")
+				hud.say("Something pale, behind the rock. Then it is not behind the rock.")
+	else:
+		_uncovered_for = 0.0
+		room.show_olm(false)
 	# nobody puts the cloth back when a lamp comes on. It is back all the same
 	if room.is_uncovered() and _any_lamp():
 		room.uncover(false)
@@ -247,6 +274,7 @@ func _buy_tank(kind: String) -> void:
 		return
 	Sfx.play("buy")
 	add_tank(slot, {"kind": kind})
+	note("home")
 	look_at_slot(slot)
 	hud.say("%s. %s" % [Kinds.of(kind).name, "Two guppies came with it." if kind == "fresh" else "See the shop for who can live in it."])
 	save()
@@ -447,6 +475,36 @@ func _point(at: Vector2) -> void:
 		tank.point_at(through[0], speed)
 
 
+## A page of the last keeper's notebook turns up (if it has not already).
+func note(id: String) -> void:
+	if Notes.find(id):
+		hud.say("A page of the notebook: %s. It is in the BOOK." % Notes.PAGES[id][0])
+		Sfx.play("egg", 0.7)
+		save.call_deferred()
+
+
+## Turns up the pages that go with what has happened on the shelf lately.
+func _look_for_pages() -> void:
+	note("first")
+	if not _any_lamp():
+		note("dark")
+	for t in tanks:
+		if t == null:
+			continue
+		if t.seen.has("ate from the hand"):
+			note("hand")
+		if t.seen.has("made friends"):
+			note("friends")
+		if t.seen.has("watched at night"):
+			note("night")
+		if t.torch != null and t.torch_red:
+			note("red")
+		if t.swarm != null and t.swarm.count() >= 1.0:
+			note("dust")
+		if t.about().get("humid", false) and t.humidity < 0.45:
+			note("damp")
+
+
 ## Whether any tank on the shelf has its lamp on.
 func _any_lamp() -> bool:
 	for t in tanks:
@@ -461,10 +519,12 @@ func _touch_cover() -> void:
 		room.uncover(false)
 		return
 	if _any_lamp():
+		note("cloth")
 		hud.say("The note says: NOT IN THE LIGHT. It is not your writing.")
 		Sfx.play("no")
 		return
 	room.uncover(true)
+	note("lifted")
 	var cave: Dictionary = Save.data.get("cave", {})
 	cave["lifted"] = int(cave.get("lifted", 0)) + 1
 	Save.data["cave"] = cave

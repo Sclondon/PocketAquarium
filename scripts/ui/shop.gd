@@ -105,7 +105,7 @@ func _row(picture: Control, title: String, blurb: String, price: int, why: Strin
 	words.add_child(line)
 	row.add_child(words)
 	var buy := UiKit.button(why if why != "" else str(price), on_buy, Vector2(96, 46))
-	buy.disabled = why != "" or price > Tickets.balance
+	buy.disabled = why != "" or not Tickets.can_pay(price)
 	buy.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	row.add_child(buy)
 	body.add_child(row)

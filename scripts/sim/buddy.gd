@@ -40,6 +40,10 @@ var bond := 0.0
 var visited := 0
 ## When it came to the keeper (seconds from 1970; 0 if nobody knows).
 var met := 0.0
+## Whether it was hatched on the shelf (and so can be traded in), and, for a kind that is bred
+## for its colour, how deep its colour is: 0 washed out to 1 as deep as they come.
+var born_here := false
+var grade := 0.35
 ## How it stands with each of the others, by their id: -1 (rivals) to 1 (friends).
 var ties := {}
 ## Where in the tank it likes to be: each number 0 to 1, across, up and back.
@@ -54,6 +58,12 @@ var _this_visit := 0.0
 func roll(rng: RandomNumberGenerator) -> void:
 	temper = TEMPERS[rng.randi() % TEMPERS.size()]
 	spot = Vector3(rng.randf(), rng.randf_range(0.1, 0.8), rng.randf())
+
+
+## What a colour of this depth is called in the trade.
+func grade_name() -> String:
+	var names := ["Wild brown", "Cherry", "Sakura", "Fire red", "Painted fire red"]
+	return names[clampi(int(grade * names.size()), 0, names.size() - 1)]
 
 
 ## How well it knows the keeper, in a word: "new", "settled", "friendly" or "close".
@@ -134,7 +144,7 @@ func to_data() -> Dictionary:
 	for other: int in ties:
 		if absf(ties[other]) > 0.05:
 			kept[str(other)] = snappedf(ties[other], 0.01)
-	return {"id": id, "temper": temper, "bond": bond, "visited": visited, "met": met, "ties": kept,
+	return {"id": id, "temper": temper, "bond": bond, "visited": visited, "met": met, "born": born_here, "grade": grade, "ties": kept,
 			"spot": [spot.x, spot.y, spot.z], "moments": moments}
 
 
@@ -151,6 +161,8 @@ func load_data(data: Dictionary, rng: RandomNumberGenerator) -> void:
 	bond = clampf(data.get("bond", 0.0), 0.0, 1.0)
 	visited = int(data.get("visited", 0))
 	met = float(data.get("met", 0.0))
+	born_here = bool(data.get("born", false))
+	grade = clampf(data.get("grade", 0.35), 0.0, 1.0)
 	ties.clear()
 	var saved: Dictionary = data.get("ties", {})
 	for other: String in saved:

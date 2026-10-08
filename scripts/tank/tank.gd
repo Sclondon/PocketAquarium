@@ -344,7 +344,7 @@ func to_data() -> Dictionary:
 			kept.append(f.to_data())
 	var laid: Array = []
 	for egg in _eggs:
-		laid.append({"species": egg.species, "age": egg.age, "x": egg.node.position.x, "z": egg.node.position.z})
+		laid.append({"species": egg.species, "age": egg.age, "x": egg.node.position.x, "z": egg.node.position.z, "grade": egg.get("grade", 0.35)})
 	return {"kind": kind, "size": size_id, "plants": plants, "snails": snails, "shrimps": shrimps, "gear": gear.keys(),
 			"decor": decor.keys(), "dex": dex.keys(), "o2": o2, "waste": waste, "algae": algae, "lamp": lamp_on,
 			"colony": water.colony, "humidity": humidity, "salt": salt,
@@ -415,7 +415,7 @@ func load_state(data: Dictionary) -> void:
 		_add_critter_node("shrimp")
 	for entry in data.get("eggs", []):
 		if entry is Dictionary and Species.LIST.has(str(entry.get("species", ""))):
-			_lay(str(entry.species), float(entry.get("x", 0.0)), float(entry.get("z", 0.0)), float(entry.get("age", 0.0)))
+			_lay(str(entry.species), float(entry.get("x", 0.0)), float(entry.get("z", 0.0)), float(entry.get("age", 0.0)), float(entry.get("grade", 0.35)))
 	if data.has("at"):
 		var away := clampf(Time.get_unix_time_from_system() - float(data["at"]), 0.0, MAX_AWAY)
 		elapse(away)
@@ -650,6 +650,13 @@ func can_change_water() -> bool:
 
 ## Swaps out most of the water for clean.
 func change_water() -> void:
+	if about().get("humid", false):
+		# (frogs sing when it rains)
+		for f in fish:
+			if not f.dead and Species.habit(f.species, "gait") == "hop":
+				Sfx.play("croak", _rng.randf_range(1.3, 1.9), -6.0)
+				notice("sang after the mist", f)
+				f.buddy.note("Sang when it was misted")
 	if not is_wet():
 		# no water to change: the air is misted instead
 		humidity = minf(humidity + MIST, 1.0)
@@ -765,6 +772,13 @@ func eat(food: Dictionary) -> void:
 		_foods.erase(food)
 		food.node.queue_free()
 		Sfx.play("eat", randf_range(0.9, 1.2), -8.0)
+
+
+## One animal has eaten another: nothing is left of it.
+func eaten(prey: Fish, by: Fish) -> void:
+	_say("%s the %s has eaten %s." % [by.fish_name, by.info().name, prey.fish_name], "sad")
+	notice("ate a tankmate", by, prey)
+	remove_fish(prey)
 
 
 func fish_died(f: Fish) -> void:
@@ -951,7 +965,7 @@ func _step_eggs(delta: float) -> void:
 		_eggs.erase(egg)
 		var at: Vector3 = egg.node.position
 		egg.node.queue_free()
-		var f := _spawn({"species": egg.species, "growth": 0.0})
+		var f := _spawn({"species": egg.species, "growth": 0.0, "buddy": {"grade": egg.get("grade", 0.35), "born": true, "bond": 0.1}})
 		# (it was born here, and has seen the keeper about since it was an egg)
 		f.buddy.met = Time.get_unix_time_from_system()
 		f.buddy.bond = 0.1
@@ -982,22 +996,30 @@ func _try_breeding(dt: float) -> void:
 		return
 	var a: Fish = ready[_rng.randi() % ready.size()]
 	ready.erase(a)
-	var b: Fish = ready[_rng.randi() % ready.size()]
+	# (its mate is one of its own kind; only the old pet-shop fish will cross)
+	var mates: Array[Fish] = []
+	for f in ready:
+		if f.species == a.species or not (a.info().has("home") or f.info().has("home")):
+			mates.append(f)
+	if mates.is_empty():
+		return
+	var b: Fish = mates[_rng.randi() % mates.size()]
 	var child := Species.child_of(a.species, b.species, _rng)
 	if grown + float(Species.LIST[child].load) > capacity() * BREED_ROOM:
 		return
 	a.breed_wait = BREED_WAIT
 	b.breed_wait = BREED_WAIT
 	var mid := (a.position + b.position) * 0.5
-	_lay(child, mid.x, mid.z, 0.0)
+	# (a kind bred for colour takes after its parents, a little deeper or paler by chance)
+	_lay(child, mid.x, mid.z, 0.0, clampf((a.buddy.grade + b.buddy.grade) * 0.5 + _rng.randf_range(-0.12, 0.16), 0.0, 1.0))
 	_say("%s and %s have laid an egg." % [a.fish_name, b.fish_name], "egg")
 
 
-func _lay(species: String, x: float, z: float, egg_age: float) -> void:
+func _lay(species: String, x: float, z: float, egg_age: float, grade := 0.35) -> void:
 	var node := _instance(_egg, _mat)
 	node.position = _on_floor(clampf(x, -width * 0.45, width * 0.45), clampf(z, -depth * 0.45, depth * 0.45))
 	_life.add_child(node)
-	_eggs.append({"node": node, "age": egg_age, "species": species})
+	_eggs.append({"node": node, "age": egg_age, "species": species, "grade": grade})
 
 
 ## How brightly the lamp is lit, 0 to 1 (it fades on and off).

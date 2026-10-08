@@ -375,6 +375,8 @@ static func child_of(a: String, b: String, rng: RandomNumberGenerator) -> String
 static func hint(id: String) -> String:
 	if int(LIST[id].price) > 0:
 		return "Sold in the shop, for a salt water tank." if water(id) == "sea" else "Sold in the shop."
+	if id == "olm":
+		return "It does not come from a shop."
 	for key: String in CROSSES:
 		if CROSSES[key] == id:
 			return "A %s might have one, with the right company." % LIST[key.get_slice("+", 0)].name

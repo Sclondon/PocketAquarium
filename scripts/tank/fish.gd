@@ -110,6 +110,7 @@ func setup(in_tank, data: Dictionary) -> void:
 	_line.shader = preload("res://shaders/outline.gdshader")
 	_mat.next_pass = _line
 	_mat.set_shader_parameter("modelled", modelled)
+	_mat.set_shader_parameter("grade", buddy.grade if Species.habit(species, "graded") else -1.0)
 	_line.set_shader_parameter("modelled", modelled)
 	_wag = _rng.randf() * TAU
 	_bend("wag_phase", _wag)
@@ -362,6 +363,12 @@ func _mind_the_others() -> void:
 			own_kind += 1
 		if gap < 0.25 + reach():
 			_meet(other)
+			# one with a mouth for it eats what is small enough to fit, when it is hungry
+			if hunger > Life.PECKISH and other.reach() < reach() * float(Species.habit(species, "eats", 0.0)) and _rng.randf() < 0.25:
+				life.hunger = 0.0
+				buddy.note("Ate %s" % other.fish_name)
+				tank.eaten(other, self)
+				return
 		if buddy.is_friend(other.buddy.id) and (friend == null or gap < position.distance_to(friend.position)):
 			friend = other
 		if other.position.distance_to(here) < 0.3 + reach() and not buddy.is_friend(other.buddy.id) and other.reach() <= reach() * 1.5:
@@ -374,6 +381,13 @@ func _mind_the_others() -> void:
 		return
 	if Species.shoals(species):
 		doing = "shoaling" if own_kind >= 2 else "sulking"
+		return
+	if Species.habit(species, "dives") and _rng.randf() < 0.12:
+		doing = "dived" if doing != "dived" else "wandering"
+		if doing == "dived":
+			tank.notice("dived into the sand", self)
+		return
+	if doing == "dived":
 		return
 	if friend != null and _rng.randf() < 0.7:
 		doing = "keeping company"
@@ -537,6 +551,8 @@ func mood() -> String:
 			return "hiding from you"
 		"buried":
 			return "buried till dark"
+		"dived":
+			return "under the sand"
 		"sulking":
 			return "sulking for want of its own kind"
 		"begging":
@@ -639,7 +655,7 @@ func _roam(delta: float) -> void:
 	var to := goal - position
 	var hurried := doing in ["fleeing", "chasing", "hiding", "feeding", "following"]
 	_rest = 0.0 if hurried else maxf(_rest - delta, 0.0)
-	var moving := _rest <= 0.0 and to.length() > 0.04
+	var moving: bool = _rest <= 0.0 and to.length() > 0.04 and doing != "dived"
 	var v := _burst
 	_burst = _burst.lerp(Vector3.ZERO, 1.0 - exp(-3.0 * delta))
 	if moving:
@@ -680,6 +696,7 @@ func _roam(delta: float) -> void:
 		basis = Basis.looking_at(Vector3(_facing.x, 0.0, _facing.y), Vector3.UP).scaled(Vector3.ONE * _size())
 
 
-## How far its middle is above the ground it stands on (metres).
+## How far its middle is above the ground it stands on (metres). One that has dived is most of
+## the way under it.
 func _stand() -> float:
-	return _size() * float(Species.habit(species, "stand", 0.25))
+	return _size() * (float(Species.habit(species, "stand", 0.25)) - (0.22 if doing == "dived" else 0.0))

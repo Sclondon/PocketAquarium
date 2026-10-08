@@ -8,6 +8,8 @@ extends CanvasLayer
 signal pad_input(event: InputEvent)
 signal tool_picked(tool: String)
 signal give_away(fish: Node)
+## A page of the notebook wants reading (the keeper asked for it).
+signal notebook_opened
 signal card_closed
 ## Step to the next fish (1) or the one before (-1).
 signal next_fish(step: int)
@@ -154,7 +156,7 @@ func setup() -> void:
 	page.give_away.connect(func(fish: Node) -> void: give_away.emit(fish))
 	var shop_button := UiKit.button("SHOP", shop.open, KEY)
 	bar.add_child(shop_button)
-	bar.add_child(UiKit.button("DEX", dex.open, KEY))
+	bar.add_child(UiKit.button("BOOK", dex.open, KEY))
 	for b in bar.get_children():
 		b.add_theme_font_size_override("font_size", 17)
 	_tank_only.append_array([_lamp, _water, shop_button])
@@ -352,6 +354,8 @@ func is_sheet_open() -> bool:
 func _show_tickets() -> void:
 	_tickets.text = str(Tickets.balance)
 	_wallet_note.text = "TICKETS" if Tickets.hosted else "PRACTICE TICKETS"
+	if Tickets.credit > 0:
+		_wallet_note.text += "  +%d CREDIT" % Tickets.credit
 
 
 func _change_water() -> void:

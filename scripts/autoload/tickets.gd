@@ -16,6 +16,9 @@ signal changed
 const PRACTICE := 300
 
 var balance := 0
+## Shop credit, earned by trading in animals bred on the shelf. It is the game's own, kept in
+## the save, and is spent before tickets on anything but a new home.
+var credit := 0
 ## Whether the arcade page has told us the balance (false: the practice wallet).
 var hosted := false
 
@@ -24,6 +27,7 @@ var _callback: JavaScriptObject
 
 func _ready() -> void:
 	balance = int(Save.data.get("wallet", PRACTICE))
+	credit = int(Save.data.get("credit", 0))
 	for arg in OS.get_cmdline_user_args():
 		if arg.begins_with("--tickets="):
 			balance = int(arg.get_slice("=", 1))
@@ -54,8 +58,17 @@ func _on_message(args: Array) -> void:
 
 ## Pays for something. False (and nothing is taken) when there are not enough tickets.
 func spend(amount: int, item: String) -> bool:
-	if amount > balance:
+	var from_credit := 0 if item.begins_with("tank:") else mini(credit, amount)
+	if amount - from_credit > balance:
 		return false
+	if from_credit > 0:
+		credit -= from_credit
+		Save.data["credit"] = credit
+		amount -= from_credit
+		if amount == 0:
+			Save.write()
+			changed.emit()
+			return true
 	balance -= amount
 	if hosted:
 		post({"type": "SPEND_TICKETS", "amount": amount, "item": item})
@@ -64,6 +77,19 @@ func spend(amount: int, item: String) -> bool:
 		Save.write()
 	changed.emit()
 	return true
+
+
+## What can be spent on a thing: tickets, and credit too unless it is a new home.
+func can_pay(amount: int, item := "") -> bool:
+	return amount <= balance + (0 if item.begins_with("tank:") else credit)
+
+
+## Shop credit for an animal traded in.
+func earn(amount: int) -> void:
+	credit += amount
+	Save.data["credit"] = credit
+	Save.write()
+	changed.emit()
 
 
 ## Sends a message to the page the cabinet is in (nothing happens outside a browser).

@@ -8,6 +8,7 @@ extends Node3D
 
 const MB := preload("res://scripts/util/mesh_builder.gd")
 const Props := preload("res://scripts/tank/props.gd")
+const Models := preload("res://scripts/tank/models.gd")
 
 ## Metres from one shelf to the next, and how thick a shelf is.
 const SLOT_GAP := 2.9
@@ -32,6 +33,11 @@ var _key: DirectionalLight3D
 var _odds: MeshInstance3D
 var _cloth: MeshInstance3D
 var _cave: MeshInstance3D
+## What lives under the cloth, whether it has come out from behind its rock, and how far out.
+var olm_out := false
+var _olm: MeshInstance3D
+var _olm_mat: ShaderMaterial
+var _olm_at := 0.0
 var _dressed_for := ""
 
 
@@ -182,8 +188,9 @@ func _covered_tank() -> void:
 		for sz: float in [-1.0, 1.0]:
 			Props.box(mb, at + Vector3(sx * size.x * 0.5, size.y * 0.5, sz * size.z * 0.5), Vector3(0.05, size.y, 0.05), Color(0.3, 0.32, 0.4))
 	Props.box(mb, at + Vector3(0.0, 0.03, 0.0), Vector3(size.x + 0.04, 0.06, size.z + 0.04), Color(0.3, 0.32, 0.4))
-	Props.box(mb, at + Vector3(0.0, 0.45, 0.0), Vector3(size.x - 0.05, 0.78, size.z - 0.05), Color(0.05, 0.1, 0.16))
-	Props.rock(mb, at + Vector3(0.25, 0.84, size.z * 0.5 - 0.12), 0.16, rng)
+	# (the dark of the water is a wall at the back, so what is on the floor shows against it)
+	Props.box(mb, at + Vector3(0.0, 0.47, -size.z * 0.5 + 0.04), Vector3(size.x - 0.05, 0.82, 0.04), Color(0.05, 0.1, 0.16))
+	Props.rock(mb, at + Vector3(0.3, 0.06, 0.05), 0.22, rng)
 	_cave = MeshInstance3D.new()
 	_cave.mesh = mb.build()
 	_cave.material_override = _mat
@@ -209,6 +216,31 @@ func _covered_tank() -> void:
 	_cloth.mesh = cloth.build()
 	_cloth.material_override = _mat
 	add_child(_cloth)
+	# what lives in it (its model is made in Blender: see art/blender/olm.py), drawn like the
+	# animals in the tanks, in what light the moon gives
+	var model: Mesh = Models.of("olm")
+	if model != null:
+		_olm_mat = ShaderMaterial.new()
+		_olm_mat.shader = preload("res://shaders/fish.gdshader")
+		var line := ShaderMaterial.new()
+		line.shader = preload("res://shaders/outline.gdshader")
+		_olm_mat.next_pass = line
+		for mat: ShaderMaterial in [_olm_mat, line]:
+			mat.set_shader_parameter("modelled", true)
+			mat.set_shader_parameter("swim", 3)
+			mat.set_shader_parameter("wag_amp", 0.2)
+			mat.set_shader_parameter("lamp", 0.8)
+		_olm_mat.set_shader_parameter("key", Color(0.6, 0.72, 1.0))
+		_olm_mat.set_shader_parameter("shadow", Color(0.2, 0.22, 0.45))
+		_olm_mat.set_shader_parameter("haze", Color(0.03, 0.05, 0.1))
+		_olm_mat.set_shader_parameter("water_top", -1000.0)
+		line.set_shader_parameter("ink", Color(0.05, 0.06, 0.14))
+		_olm = MeshInstance3D.new()
+		_olm.mesh = model
+		_olm.material_override = _olm_mat
+		_olm.basis = Basis(Vector3.UP, PI * 0.5).scaled(Vector3.ONE * 0.2)
+		_olm.visible = false
+		add_child(_olm)
 	# a little of the moon reaches it, and nothing else does
 	var moon := OmniLight3D.new()
 	moon.light_color = Color(0.5, 0.62, 1.0)
@@ -217,6 +249,22 @@ func _covered_tank() -> void:
 	moon.omni_attenuation = 0.5
 	moon.position = at + Vector3(-1.1, 1.0, 1.5)
 	add_child(moon)
+
+
+## Brings what lives there out from behind its rock, or sends it back.
+func show_olm(out: bool) -> void:
+	olm_out = out
+
+
+func _process(delta: float) -> void:
+	if _olm == null:
+		return
+	_olm_at = move_toward(_olm_at, 1.0 if olm_out else 0.0, delta * (0.12 if olm_out else 1.5))
+	_olm.visible = _olm_at > 0.01 and is_uncovered()
+	var from := Vector3(0.42, TOP + 0.07, -0.25)
+	_olm.position = from.lerp(Vector3(-0.35, TOP + 0.07, 0.0), _olm_at)
+	_olm_mat.set_shader_parameter("wag_phase", _olm_at * 26.0)
+	(_olm_mat.next_pass as ShaderMaterial).set_shader_parameter("wag_phase", _olm_at * 26.0)
 
 
 ## Takes the cloth off the covered tank, or puts it back.

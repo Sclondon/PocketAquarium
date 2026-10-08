@@ -1,19 +1,19 @@
 smoke: a new tank, fed daily
 smoke:   after 60 days: 6 living; 2 hatched, 0 died, 0 eggs waiting; hunger 0.33
-smoke:   worst waste 0.63, lowest oxygen 0.73, algae 0.67, crowd 3.2/5, dex 2/47 ["betta", "kuhli"]
-smoke:   between the animals, 5.2 things a minute watched: { "chase": 501, "made friends": 1, "kept company": 126, "fell out": 1 }
+smoke:   worst waste 0.66, lowest oxygen 0.71, algae 0.69, crowd 3.4/5, dex 3/47 ["betta", "kuhli", "moonfish"]
+smoke:   between the animals, 8.6 things a minute watched: { "chase": 735, "fell out": 2, "made friends": 1, "kept company": 288 }
 smoke: a full tank with everything fitted, fed daily
 smoke:   after 120 days: 14 living; 4 hatched, 0 died, 0 eggs waiting; hunger 0.33
-smoke:   worst waste 0.41, lowest oxygen 0.76, algae 0.08, crowd 10.3/15, dex 7/47 ["betta", "kuhli", "tetra", "goldfish", "angelfish", "clownfish", "puffer"]
-smoke:   between the animals, 15.2 things a minute watched: { "chase": 1372, "made friends": 29, "fell out": 7, "kept company": 2230 }
+smoke:   worst waste 0.41, lowest oxygen 0.76, algae 0.08, crowd 10.2/15, dex 9/47 ["betta", "kuhli", "moonfish", "tetra", "goldfish", "angelfish", "clownfish", "puffer", "harlequin"]
+smoke:   between the animals, 10.2 things a minute watched: { "chase": 711, "fell out": 10, "made friends": 32, "kept company": 1692 }
 smoke: said: You were away 3 days.
 smoke: reloaded 14 fish and 0 eggs after 3 days away; first fish's hunger 0.33 -> 1.00
 smoke: left alone, the last of the fish died on day 5; waste 0.32, algae 0.67
 smoke: a magic salt water tank, fed daily
 smoke:   after 60 days: 7 living; 0 hatched, 0 died, 0 eggs waiting; hunger 0.33
-smoke:   worst waste 0.60, lowest oxygen 0.68, algae 0.79, crowd 13.5/15, dex 13/47 ["betta", "kuhli", "tetra", "goldfish", "angelfish", "clownfish", "puffer", "jellyfish", "salmon", "tuna", "shark", "giant_squid", "blue_whale"]
-smoke:   between the animals, 14.1 things a minute watched: { "chase": 1214, "made friends": 7, "fell out": 1, "kept company": 464 }
-smoke: saved 2 tanks, dex 13
+smoke:   worst waste 0.60, lowest oxygen 0.68, algae 0.80, crowd 13.5/15, dex 15/47 ["betta", "kuhli", "moonfish", "tetra", "goldfish", "angelfish", "clownfish", "puffer", "harlequin", "jellyfish", "salmon", "tuna", "shark", "giant_squid", "blue_whale"]
+smoke:   between the animals, 5.6 things a minute watched: { "chase": 319, "made friends": 8, "kept company": 347, "fell out": 2 }
+smoke: saved 2 tanks, dex 15
 smoke: a brine kit after 40 days: 34 sea monkeys (most 87), 2 eggs, salt 0.71
 smoke: a brine kit never fed, after 20 days: 0 sea monkeys
 smoke: a vivarium misted daily for 30 days: 3 of 3 living, damp 0.70, first death on day 0

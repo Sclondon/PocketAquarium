@@ -66,6 +66,9 @@ func refresh() -> void:
 			_title.text = fish.fish_name)
 	naming.add_child(box)
 
+	if Species.habit(fish.species, "graded"):
+		body.add_child(_head("COLOUR"))
+		body.add_child(_line("%s. Breed the deepest red with the deepest and their young come deeper still." % fish.buddy.grade_name()))
 	body.add_child(_head("WHAT IT IS LIKE"))
 	body.add_child(_line(TEMPERS[fish.buddy.temper]))
 	body.add_child(_line("Just now: %s." % fish.mood()))
@@ -90,9 +93,23 @@ func refresh() -> void:
 	var foot := HBoxContainer.new()
 	foot.alignment = BoxContainer.ALIGNMENT_END
 	body.add_child(foot)
-	foot.add_child(UiKit.button("GIVE AWAY", func() -> void:
+	# one that was hatched here can be traded in at the shop, for credit
+	var worth := trade_in(fish)
+	foot.add_child(UiKit.button("TRADE IN  +%d" % worth if worth > 0 else "GIVE AWAY", func() -> void:
+		if worth > 0:
+			Tickets.earn(worth)
 		give_away.emit(fish)
-		close(), Vector2(130, 40)))
+		close(), Vector2(170, 40)))
+
+
+## What the shop gives in credit for an animal: nothing for one that was bought (it can only be
+## given away), a third of its price for one hatched here, and more the deeper its colour.
+static func trade_in(of: Node) -> int:
+	if not of.buddy.born_here or not of.is_adult():
+		return 0
+	var price: int = maxi(int(of.info().price), 30)
+	var deep: float = 1.0 + 3.0 * of.buddy.grade if Species.habit(of.species, "graded") else 1.0
+	return maxi(int(price * 0.34 * deep), 5)
 
 
 func _head(text: String) -> Label:
