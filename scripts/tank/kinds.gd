@@ -15,6 +15,8 @@ extends RefCounted
 ## dries out and has to be misted; `warm`, how warm it runs (0.5 is the room), and `heat_lamp`,
 ## how much warmer with its lamp on. `swarm` is the kind of tiny animal it keeps by the
 ## hundred, if it keeps one.
+## A `sealed` one loses no water, so its salt stays put; opening it to change the water throws
+## out most of what keeps it alive.
 
 const TANKS := [
 	{"name": "Pocket tank", "w": 2.2, "h": 1.5, "d": 1.2, "room": 5.0, "price": 0},
@@ -27,7 +29,7 @@ const JARS := [
 ]
 
 ## The order they are offered in.
-const ORDER := ["brine", "snail", "fresh", "shrimp", "hard", "stream", "vivarium", "arid", "cold", "palu", "sea"]
+const ORDER := ["brine", "snail", "sealed", "fresh", "shrimp", "hard", "stream", "vivarium", "arid", "cold", "palu", "sea"]
 
 const LIST := {
 	"fresh": {
@@ -93,6 +95,14 @@ const LIST := {
 		"look": {"key": Color(0.85, 1.0, 0.8), "shadow": Color(0.1, 0.26, 0.22), "haze": Color(0.04, 0.14, 0.08),
 			"spill": Color(0.55, 0.95, 0.55), "ink": Color(0.03, 0.06, 0.04)},
 		"warm": 0.6, "starter": [], "plants": 4,
+	},
+	"sealed": {
+		"name": "Sealed jar", "price": 120, "water": 0.9, "round": true, "sizes": JARS, "sealed": true,
+		"blurb": "Brackish water, black rock and a lid that stays on. It asks for light, and to be let alone.",
+		"water_colour": Color(0.25, 0.6, 0.62), "sand": Color(0.15, 0.13, 0.14), "coarse": 1.0, "air": Color(0.02, 0.02, 0.03),
+		"look": {"key": Color(0.8, 1.0, 0.95), "shadow": Color(0.08, 0.16, 0.24), "haze": Color(0.02, 0.07, 0.09),
+			"spill": Color(0.45, 0.9, 0.85), "ink": Color(0.02, 0.04, 0.06)},
+		"warm": 0.6, "salt": 0.25, "algae": 0.25, "starter": ["opae_ula", "opae_ula", "opae_ula", "opae_ula"], "plants": 0,
 	},
 	"vivarium": {
 		"name": "Rainforest vivarium", "price": 300, "water": 0.0, "sizes": TANKS,

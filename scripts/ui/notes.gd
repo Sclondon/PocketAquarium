@@ -27,6 +27,10 @@ const PAGES := {
 			"Held my shaving mirror to the glass for Admiral. He gave it everything he had for a quarter of a minute and then went off as if he had won. A minute a day, no more: it is exercise, but he does not know that it is not real.
 
 The loaches did not care. The loaches have never cared about anything."],
+	"sealed": ["The jar with the lid on",
+			"Bought as a novelty and it has outlasted two tanks. I have not fed it since the spring before last. I have not opened it at all. The green on the glass is not dirt, it is dinner: leave some.
+
+Everything else on this shelf wants something from me. This wants a window."],
 	"pests": ["Uninvited",
 			"There are snails in the tank that I did not buy. They came in on a plant, as eggs. One is nothing. Forty is the week after. They do no harm, and they clean the glass; but if you want them gone, the net takes them one at a time, and a pea puffer takes them faster."],
 	"cloth": ["The one on top",

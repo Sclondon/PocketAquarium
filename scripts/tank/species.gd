@@ -11,7 +11,7 @@ extends RefCounted
 
 ## The order they are listed in, in the shop and the fish-dex.
 const ORDER := ["betta", "kuhli", "glass_catfish", "hatchetfish", "sparkling_gourami",
-		"white_cloud", "hillstream_loach", "cave_tetra", "axolotl", "mystery_snail", "nerite", "pest_snail", "cherry_shrimp", "amano_shrimp",
+		"white_cloud", "hillstream_loach", "cave_tetra", "axolotl", "mystery_snail", "nerite", "pest_snail", "cherry_shrimp", "amano_shrimp", "opae_ula",
 		"pearl_danio", "scarlet_badis", "pea_puffer", "butterflyfish", "elephantnose", "knifefish", "bichir",
 		"shell_dweller", "bamboo_shrimp", "fire_newt", "milk_frog", "glass_frog", "chameleon", "blue_tongue",
 		"dart_frog", "horned_frog", "crested_gecko", "leopard_gecko", "sandfish", "vampire_crab", "mudskipper",
@@ -127,6 +127,12 @@ const LIST := {
 		"price": 20, "size": 0.4, "load": 0.15, "speed": 0.8, "home": ["shrimp", "snail"],
 		"habits": {"gait": "walk", "stand": 0.0, "legs": [0.3, 0.22], "graded": true},
 		"look": {"back": Color(0.86, 0.1, 0.08), "side": Color(0.86, 0.1, 0.08), "belly": Color(0.95, 0.4, 0.3), "fin": Color(0.9, 0.3, 0.22)},
+	},
+	"opae_ula": {
+		"name": "Opae Ula", "blurb": "A red shrimp the size of a grain of rice, from pools in black lava. Twenty years on light and nothing else, if you can leave it be.",
+		"price": 25, "size": 0.26, "load": 0.04, "speed": 0.7, "home": ["sealed"], "wants": {"salt": [0.1, 0.4]},
+		"habits": {"gait": "walk", "stand": 0.0, "legs": [0.3, 0.22], "grazes": true, "most": 10, "slow": 6.0},
+		"look": {"back": Color(0.9, 0.16, 0.1), "side": Color(0.9, 0.16, 0.1), "belly": Color(1.0, 0.5, 0.4), "fin": Color(0.95, 0.35, 0.25)},
 	},
 	"amano_shrimp": {
 		"name": "Amano Shrimp", "blurb": "Clear as glass and never still. Strips the algae, then steals the others' dinner.",
@@ -492,7 +498,9 @@ const GUARDS := ["betta", "midnight_betta", "clownfish", "shark", "mudskipper", 
 
 ## One of a kind's ways (`habits` in its entry): `night` for one that hides by day and comes out
 ## in the dark; `level`, "top", "middle" or "bottom", for one that keeps to a part of the water;
-## `wag`, how far it bends as it swims; `croaks` for one that calls to its own kind.
+## `wag`, how far it bends as it swims; `croaks` for one that calls to its own kind; `grazes` for
+## one that lives on the green film and takes no food; `most`, the biggest colony its kind will
+## breed up to, and `slow`, how many times longer than most it waits between broods.
 static func habit(id: String, what: String, otherwise: Variant = false) -> Variant:
 	return (LIST[id].get("habits", {}) as Dictionary).get(what, otherwise)
 

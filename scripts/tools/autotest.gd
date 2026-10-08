@@ -105,6 +105,23 @@ func _smoke() -> void:
 			if first_death == 0 and _living(viv) < 3:
 				first_death = n + 1
 		print("smoke: a vivarium %s for 30 days: %d of 3 living, damp %.2f, first death on day %d" % [care, _living(viv), viv.humidity, first_death])
+	# a sealed jar: left quite alone in the light, left in the dark, and fussed over
+	for care: String in ["let alone", "kept in the dark", "fed daily and opened weekly"]:
+		var sealed = main.tanks[1]
+		sealed.load_state({"kind": "sealed", "fish": [{"species": "opae_ula"}, {"species": "opae_ula"}, {"species": "opae_ula"}, {"species": "opae_ula"}]})
+		sealed.set_lamp(care != "kept in the dark")
+		for n in 60:
+			if care == "fed daily and opened weekly":
+				sealed.drop_food(0.0, 0.0)
+				for i in 600:
+					sealed.step(0.1)
+				if n % 7 == 6:
+					sealed.change_water()
+			sealed.elapse(86400.0)
+			if OS.has_environment("DBG") and n % 6 == 0:
+				print("dbg %s day %d: fish %d living %d algae %.2f waste %.2f o2 %.2f colony %.2f hunger %.2f" % [care, n, sealed.fish.size(), _living(sealed), sealed.algae, sealed.waste, sealed.o2, sealed.water.colony, sealed.fish[0].hunger])
+		print("smoke: a sealed jar %s for 60 days: %d of 4 living (and %d born), glass %.2f, water %.2f" % [care, mini(_living(sealed), 4),
+				maxi(_living(sealed) - 4, 0), sealed.algae, sealed.waste])
 
 	# an animal netted out of one home and into another keeps its name and what it thinks of the keeper
 	var from = main.tanks[2]

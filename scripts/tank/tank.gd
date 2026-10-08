@@ -386,7 +386,7 @@ func load_state(data: Dictionary) -> void:
 			dex[str(id)] = true
 	o2 = clampf(data.get("o2", 0.9), 0.0, 1.0)
 	waste = clampf(data.get("waste", 0.05), 0.0, 1.0)
-	algae = clampf(data.get("algae", 0.0), 0.0, 1.0)
+	algae = clampf(data.get("algae", about().get("algae", 0.0)), 0.0, 1.0)
 	lamp_on = data.get("lamp", true)
 	# (a tank from a save has been running: its filter is alive. One just bought is not)
 	water.colony = clampf(data.get("colony", NEW_COLONY if data.has("kind") and not data.has("fish") else 1.0), 0.0, 1.0)
@@ -573,6 +573,11 @@ func rebuild() -> void:
 			for slate: Array in [[-0.35, 0.06, 0.0], [0.25, 0.06, 0.05], [-0.05, 0.32, 0.0]]:
 				Props.box(mb, _on_floor(hw * 0.2 + slate[0], -hd * 0.35) + Vector3(0.0, slate[1], 0.0),
 						Vector3(0.12 if slate[1] < 0.2 else 0.9, 0.3 if slate[1] < 0.2 else 0.07, 0.5), Color(0.34, 0.36, 0.42), rng, 0.015, Basis(Vector3.UP, slate[2]))
+		"sealed":
+			# black lava, piled up, full of holes to get into
+			for lump: Array in [[-0.3, -0.25, 0.2], [0.1, -0.35, 0.26], [0.32, -0.1, 0.15], [-0.05, -0.1, 0.13]]:
+				Props.blob(mb, _on_floor(hw * lump[0], hd * lump[1]) + Vector3(0.0, lump[2] * 0.6, 0.0), Vector3(lump[2] * 1.2, lump[2], lump[2]), rng,
+						Color(0.13, 0.11, 0.12), 6, 4, 0.3)
 		"sea":
 			# a pile of rock for things to live in
 			for stone: Array in [[-0.5, 0.0, 0.28], [-0.2, 0.0, 0.34], [-0.38, 0.3, 0.24], [0.1, 0.0, 0.2]]:
@@ -739,6 +744,10 @@ func change_water() -> void:
 		water_wait = 60.0
 		return
 	waste *= 0.35
+	if about().get("sealed", false):
+		# the lid has come off: out goes most of what was keeping it alive
+		water.colony *= 0.3
+		algae *= 0.3
 	o2 = lerpf(o2, 1.0, 0.5)
 	# (fresh water in puts the salt back where it should be, and damps the air of a paludarium)
 	salt = float(about().get("salt", 0.0))
@@ -1026,10 +1035,16 @@ func _step_water(dt: float) -> void:
 		if pests < 12 and algae > 0.12 and _rng.randf() < 1.0 - exp(-dt / DAY * 0.6):
 			_spawn({"species": "pest_snail", "growth": 0.2, "buddy": {"bond": 0.0, "born": true}})
 			_hatched += 1
+	# the ones that live on what grows on the rock and the glass keep it down a little
+	var grazers := 0
+	for f in fish:
+		grazers += int(not f.dead and Species.habit(f.species, "grazes"))
+	# (the thinner it gets the less of it they find, so in the light it settles, and in the dark it runs out)
+	algae = maxf(algae - grazers * 0.045 * algae / (algae + 0.15) * dt / DAY, 0.0)
 	# the air dries, and the salt creeps up as the water dries off
 	if about().get("humid", false):
 		humidity = maxf(humidity - DRIES * dt / DAY, 0.0)
-	if float(about().get("salt", 0.0)) > 0.0:
+	if float(about().get("salt", 0.0)) > 0.0 and not about().get("sealed", false):
 		salt = minf(salt + SALT_CREEP * dt / DAY, 1.0)
 
 
@@ -1177,8 +1192,12 @@ func _try_breeding(dt: float) -> void:
 	var child := Species.child_of(a.species, b.species, _rng)
 	if grown + float(Species.LIST[child].load) > capacity() * BREED_ROOM:
 		return
-	a.breed_wait = BREED_WAIT
-	b.breed_wait = BREED_WAIT
+	# (some kinds only ever make a small colony, and take their time about it)
+	var most := int(Species.habit(child, "most", 0))
+	if most > 0 and fish.filter(func(f: Fish) -> bool: return not f.dead and f.species == child).size() >= most:
+		return
+	a.breed_wait = BREED_WAIT * float(Species.habit(a.species, "slow", 1.0))
+	b.breed_wait = BREED_WAIT * float(Species.habit(b.species, "slow", 1.0))
 	var mid := (a.position + b.position) * 0.5
 	# (a kind bred for colour takes after its parents, a little deeper or paler by chance)
 	var grade := clampf((a.buddy.grade + b.buddy.grade) * 0.5 + _rng.randf_range(-0.12, 0.16), 0.0, 1.0)

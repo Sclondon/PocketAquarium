@@ -92,6 +92,7 @@ of twelve kinds of home (`scripts/tank/kinds.gd`), and what is sold for each is 
 | Night sea tank | salt water in the dark | the water, and its salt |
 | Brine kit | sea monkeys, by the hundred, from a packet | salt, and a pinch of food |
 | Snail jar, shrimp jar | small, green and slow | the water |
+| Sealed jar | opae ula, red shrimp the size of a grain of rice, which live on the green film and take no food | the lamp on, the lid on, and some green left on the glass. A week in the dark starves them; opening it to change the water throws out most of what keeps it clean |
 | Rainforest vivarium | frogs and a gecko, no water | how damp the air is: MIST it |
 | Arid terrarium | geckos and a skink under a heat lamp | the lamp left on |
 | Paludarium | half water, half mud: a mudskipper and a crab | salt, and damp |
@@ -110,7 +111,7 @@ Sea monkeys are not kept one by one. A brine kit holds a colony (`scripts/sim/sw
 eggs hatch a day or two after the kit is set up, the young grow up if they are fed, and the
 grown ones lay. FEED clouds the water for them.
 
-The snail jar and the shrimp jar are round jars; everything else is a glass box. A plant bought
+The snail jar, the shrimp jar and the sealed jar are round jars; everything else is a glass box. A plant bought
 for fresh water now and then brings bladder snails in with it, which nobody ordered: they
 graze the glass, multiply while there is algae, and are what a pea puffer eats.
 

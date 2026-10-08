@@ -239,10 +239,10 @@ func tick(delta: float, lived: float) -> void:
 ## on time away).
 func live(delta: float) -> void:
 	# (a snail on glass with algae on it is a snail that is eating)
-	if _gait == "glide" and tank.algae > 0.03:
+	if (_gait == "glide" or Species.habit(species, "grazes")) and tank.algae > 0.03:
 		life.hunger = minf(life.hunger, 0.3)
 	# (an animal of dry land takes no harm from the water it does not live in)
-	var in_water: bool = tank.is_wet() and Species.habit(species, "gait", "swim") in ["swim", "glide", "amphibious"]
+	var in_water: bool = tank.is_wet() and (Species.habit(species, "gait", "swim") in ["swim", "glide", "amphibious"] or float(tank.about().water) > 0.8)
 	var died := life.live(delta, tank.o2 if in_water else 1.0, tank.waste if in_water else 0.0, tank.discomfort(species))
 	_mat.set_shader_parameter("pale", 1.0 if dead else clampf(1.0 - health * 1.6, 0.0, 0.8))
 	if died:
@@ -253,7 +253,7 @@ func _swim(delta: float) -> void:
 	var box: AABB = tank.swim_box(minf(reach(), 0.3))
 	_busy = maxf(_busy - delta, 0.0)
 	var feeding := false
-	if hunger > PECKISH and doing != "fleeing" and not Species.habit(species, "pest"):
+	if hunger > PECKISH and doing != "fleeing" and not Species.habit(species, "pest") and not Species.habit(species, "grazes"):
 		# (only one that is used to the keeper will take food from the keeper's fingers)
 		var food: Dictionary = tank.nearest_food(position, buddy.stage() == "new")
 		if not food.is_empty():
@@ -730,7 +730,7 @@ func _roam(delta: float) -> void:
 	var box: AABB = tank.walk_box(_gait)
 	_busy = maxf(_busy - delta, 0.0)
 	var feeding := false
-	if hunger > PECKISH and doing != "fleeing" and not Species.habit(species, "pest"):
+	if hunger > PECKISH and doing != "fleeing" and not Species.habit(species, "pest") and not Species.habit(species, "grazes"):
 		var food: Dictionary = tank.nearest_food(position, buddy.stage() == "new")
 		if not food.is_empty() and food.landed:
 			feeding = true

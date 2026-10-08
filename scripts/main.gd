@@ -557,6 +557,8 @@ func _look_for_pages() -> void:
 			note("dust")
 		if t.fish.any(func(f: Node) -> bool: return f.species == "pest_snail"):
 			note("pests")
+		if t.about().get("sealed", false):
+			note("sealed")
 		if t.about().get("humid", false) and t.humidity < 0.45:
 			note("damp")
 

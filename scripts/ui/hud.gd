@@ -382,4 +382,4 @@ func _change_water() -> void:
 	if tank.can_change_water():
 		tank.change_water()
 		Sfx.play("water")
-		say("Fresh water.")
+		say("Fresh water." if not tank.about().get("sealed", false) else "You have opened it. New water, and most of what kept it alive poured down the sink.")
