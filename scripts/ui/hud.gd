@@ -133,15 +133,23 @@ func setup() -> void:
 	_toast_plate.add_child(_toast)
 
 	# the tools, along the bottom
-	var bar := HBoxContainer.new()
+	var bar := HFlowContainer.new()
 	bar.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
+	bar.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	bar.offset_left = 8
+	bar.offset_right = -8
 	bar.offset_top = -64
 	bar.offset_bottom = -12
-	bar.alignment = BoxContainer.ALIGNMENT_CENTER
-	bar.add_theme_constant_override("separation", 5)
+	bar.alignment = FlowContainer.ALIGNMENT_CENTER
+	bar.add_theme_constant_override("h_separation", 5)
+	bar.add_theme_constant_override("v_separation", 5)
+	# (on a narrow screen the keys run to a second row, and the card moves up out of their way)
+	bar.resized.connect(func() -> void:
+		if _card != null:
+			_card.offset_bottom = -(bar.size.y + 22.0))
 	bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	root.add_child(bar)
-	for tool: String in ["feed", "hand", "scrub", "torch"]:
+	for tool: String in ["feed", "hand", "net", "scrub", "mirror", "torch"]:
 		var b := UiKit.button(tool.to_upper(), pick_tool.bind(tool), KEY)
 		bar.add_child(b)
 		_tools[tool] = b

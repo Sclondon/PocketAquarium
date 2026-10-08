@@ -322,6 +322,9 @@ func _place_camera(delta: float) -> void:
 	var following := selected != null and is_instance_valid(selected) and tank != null
 	var want_focus: Vector3 = tank.position + selected.position if following else _slot_centre()
 	var want_away := maxf(_fit() * _zoom, _closest()) if following else _fit() * _zoom
+	if following:
+		# the card sits over the bottom of the screen, so the fish in hand is held above the middle
+		want_focus.y -= want_away * 0.1
 	var ease := 1.0 - exp(-6.0 * delta)
 	_focus = _focus.lerp(want_focus, ease)
 	_away = want_away if _away <= 0.0 else lerpf(_away, want_away, ease)
@@ -385,7 +388,7 @@ func _on_pad(event: InputEvent) -> void:
 				_press_at = event.position
 				_pressed_when = Time.get_ticks_msec() * 0.001
 				# (with the hand, a finger put on the glass stays there for the animals to come to)
-				_on_glass = tool in ["hand", "torch"] and tank != null and not _through_tank(event.position).is_empty()
+				_on_glass = tool in ["hand", "torch", "mirror"] and tank != null and not _through_tank(event.position).is_empty()
 				if _on_glass:
 					_point(event.position)
 			elif _pressed:
@@ -394,6 +397,7 @@ func _on_pad(event: InputEvent) -> void:
 					_on_glass = false
 					tank.point_at(null)
 					tank.shine(null)
+					tank.hold_mirror(null)
 				if _offering:
 					_offering = false
 					if tank != null:
@@ -411,6 +415,8 @@ func _on_pad(event: InputEvent) -> void:
 				tank.offer(held[0])
 		elif _on_glass:
 			_point(event.position)
+		elif tool == "net" and tank != null and not _through_tank(event.position).is_empty():
+			_net(event.position)
 		elif tool == "scrub" and tank != null and not _through_tank(event.position).is_empty():
 			tank.scrub(event.relative.length() * 0.0012)
 			if _scrub_sound <= 0.0 and tank.algae > 0.0:
@@ -443,6 +449,11 @@ func _tap(at: Vector2) -> void:
 	var from := camera.project_ray_origin(_in_view(at)) - tank.position
 	var dir := camera.project_ray_normal(_in_view(at))
 	var fish: Node = tank.pick_fish(from, dir)
+	if fish != null and tool == "net" and not fish.dead and Species.habit(fish.species, "pest"):
+		tank.remove_fish(fish)
+		hud.say("One snail the fewer. There are never none.")
+		Sfx.play("plop", 1.5)
+		return
 	if fish != null:
 		if fish.dead:
 			tank.remove_fish(fish)
@@ -468,6 +479,20 @@ func _tap(at: Vector2) -> void:
 	elif tool == "scrub":
 		tank.tap(through[0])
 		Sfx.play("tap")
+	elif tool == "net":
+		_net(at)
+
+
+## Draws the net through the water under a point on the screen: leftover food comes out, and
+## whoever is near gets out of its way. Returns how many pieces it took.
+func _net(at: Vector2) -> int:
+	var from := camera.project_ray_origin(_in_view(at)) - tank.position
+	var dir := camera.project_ray_normal(_in_view(at))
+	var took: int = tank.scoop(from, dir)
+	if took > 0:
+		Sfx.play("plop", randf_range(1.3, 1.6), -6.0)
+		tank.notice("netted leftovers", null)
+	return took
 
 
 ## Takes up a tool. Taking up the torch when it is already in hand changes it from red to
@@ -476,6 +501,10 @@ func _pick_tool(picked: String) -> void:
 	if picked == "torch" and tool == "torch":
 		torch_red = not torch_red
 	tool = picked
+	if picked == "mirror":
+		hud.say("Hold it to the glass, with the lamp on. You see the back of it: they see a stranger.")
+	elif picked == "net":
+		hud.say("Draw it through food left on the bottom, or tap a snail you did not ask for.")
 	hud.show_torch(torch_red, tool == "torch")
 
 
@@ -492,6 +521,8 @@ func _point(at: Vector2) -> void:
 	_pointed_at = now
 	if tool == "torch":
 		tank.shine(through[0], torch_red)
+	elif tool == "mirror":
+		tank.hold_mirror(through[0])
 	else:
 		tank.point_at(through[0], speed)
 
@@ -516,6 +547,8 @@ func _look_for_pages() -> void:
 			note("hand")
 		if t.seen.has("made friends"):
 			note("friends")
+		if t.seen.has("flared at the mirror") or t.seen.has("looked in the mirror"):
+			note("mirror")
 		if t.seen.has("watched at night"):
 			note("night")
 		if t.torch != null and t.torch_red:
@@ -557,8 +590,9 @@ func _touch_cover() -> void:
 ## Takes a fish in hand (null lets go). The camera follows the fish in hand, and comes in
 ## close to it the first time; letting go takes it back to where it was.
 func _select(fish: Node) -> void:
-	if fish != null and selected == null:
-		_zoom_before = _zoom
+	if fish != null:
+		if selected == null:
+			_zoom_before = _zoom
 		_zoom = minf(maxf(FOLLOW_FROM, fish.reach() * 4.5) / _fit(), 1.0)
 	elif fish == null and selected != null:
 		_zoom = _zoom_before

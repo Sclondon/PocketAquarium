@@ -86,6 +86,8 @@ var _gait := "swim"
 var _rest := 0.0
 var _hop := 0.0
 var _seen_by_torch := false
+## How long it has been at the mirror this time: it loses interest in the end.
+var _at_mirror := 0.0
 ## A push away from whoever is too close, so they gather round a thing and do not pile into it.
 var _apart := Vector3.ZERO
 ## Whether it is the one the keeper has in hand (its outline says so).
@@ -368,6 +370,26 @@ func _decide() -> void:
 	if nocturnal and tank.lamp_on:
 		doing = "buried"
 		return
+	if tank.mirror == null:
+		_at_mirror = 0.0
+	elif tank.lamp_on and _plan != "jelly" and not Species.habit(species, "pest") and _at_mirror < 14.0 \
+			and position.distance_to(tank.mirror) < 1.3:
+		# a stranger in the glass: it squares up to it, or has a look, or wants nothing to do with it
+		if temper in ["grumpy", "bold"] or Species.guards(species):
+			if doing != "flaring":
+				tank.notice("flared at the mirror", self)
+				buddy.note("Squared up to itself in the mirror")
+			doing = "flaring"
+			return
+		if temper == "curious" or stage in ["friendly", "close"]:
+			if doing != "peering":
+				tank.notice("looked in the mirror", self)
+				buddy.note("Had a long look in the mirror")
+			doing = "peering"
+			return
+		if temper == "shy":
+			doing = "hiding"
+			return
 	if tank.greeting > 0.0 and stage in ["friendly", "close"]:
 		doing = "greeting"
 		return
@@ -513,6 +535,17 @@ func _steer(delta: float, box: AABB) -> void:
 			_pace = 1.5
 			if position.distance_to(_target) < 0.4:
 				buddy.kept_company(delta)
+		"flaring":
+			# up to the glass and back, broadside on, as it would with a rival
+			var m: Vector3 = tank.mirror if tank.mirror != null else position
+			_target = Vector3(m.x + sin(_at_mirror * 2.2 + buddy.id) * 0.16, m.y + cos(_at_mirror * 1.3) * 0.05, front).clamp(box.position, box.end)
+			_pace = 1.7
+			_at_mirror += delta
+		"peering":
+			var m: Vector3 = tank.mirror if tank.mirror != null else position
+			_target = (Vector3(m.x, m.y, front) + Vector3(sin(buddy.id * 2.4), cos(buddy.id * 1.7), 0.0) * (0.06 + reach())).clamp(box.position, box.end)
+			_pace = 0.7
+			_at_mirror += delta * 0.6
 		"hiding", "sulking":
 			_target = tank.hide_for(position)
 			_pace = 1.4 if doing == "hiding" else 0.5
@@ -623,6 +656,10 @@ func mood() -> String:
 			return "saying hello"
 		"following":
 			return "at your finger"
+		"flaring":
+			return "squaring up to the mirror"
+		"peering":
+			return "looking in the mirror"
 		"feeding":
 			return "eating"
 		"chasing":

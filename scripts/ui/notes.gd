@@ -23,8 +23,12 @@ const PAGES := {
 			"A child's toy, and I kept it running three years. Salt creeps: top it up before the gauge falls. A pinch of food, not a spoon."],
 	"damp": ["Glass that fogs",
 			"The frogs do not drink. They sit in the wet. If the glass is dry when you come in, you are a day late already. Mist it, and they will tell you so: they sing."],
+	"mirror": ["The shaving mirror",
+			"Held my shaving mirror to the glass for Admiral. He gave it everything he had for a quarter of a minute and then went off as if he had won. A minute a day, no more: it is exercise, but he does not know that it is not real.
+
+The loaches did not care. The loaches have never cared about anything."],
 	"pests": ["Uninvited",
-			"There are snails in the tank that I did not buy. They came in on a plant, as eggs. One is nothing. Forty is the week after. They do no harm, and they clean the glass; but if you want them gone, a pea puffer would thank you."],
+			"There are snails in the tank that I did not buy. They came in on a plant, as eggs. One is nothing. Forty is the week after. They do no harm, and they clean the glass; but if you want them gone, the net takes them one at a time, and a pea puffer takes them faster."],
 	"cloth": ["The one on top",
 			"Not in the light. I mean it. I put the cloth on for a reason and the reason has not changed."],
 	"lifted": ["Under the cloth",

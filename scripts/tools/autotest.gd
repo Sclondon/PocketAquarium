@@ -238,6 +238,11 @@ func _shots() -> void:
 	tank.greet()
 	await _settle(3.5)
 	await _shot("2c_saying_hello")
+	tank.hold_mirror(Vector3(0.3, 0.6, tank.depth * 0.5))
+	await _settle(4.0)
+	await _shot("2f_at_the_mirror")
+	print("at the mirror: ", tank.fish.filter(func(f: Node) -> bool: return f.doing in ["flaring", "peering"]).size())
+	tank.hold_mirror(null)
 	await _settle(5.0)
 	main.call("_select", tank.fish[3])
 	tank.algae = 0.6

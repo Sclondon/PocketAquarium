@@ -19,6 +19,8 @@ wide screen or a tall one.
 | Say hello (HAND tool) | Hold on the glass: fish that know you, and curious ones, come to your finger; shy and new ones hide. Move it fast and they bolt | The same |
 | Hand feed (FEED tool) | Hold still on the glass: a pinch is held out there, and fish that are used to you take it from your fingers | The same |
 | Look in the dark (TORCH tool) | Hold on the glass to shine it in. Pick TORCH again to change it: RED, which the fish cannot see, or WHITE, which sends them into hiding | The same |
+| Clear up (NET tool) | Drag through food left on the bottom to take it out before it rots; click a snail you did not ask for to take it out | The same |
+| Show them a stranger (MIRROR tool) | Hold on the glass with the lamp on. Bold and grumpy animals square up to it, curious ones and ones that know you come and look, shy ones hide; they lose interest after a quarter of a minute | The same |
 | Scrub algae (SCRUB tool) | Drag across the glass | Drag across the glass |
 | Tap the glass (SCRUB tool) | Click the glass: nearby fish bolt | Tap the glass |
 | Follow a fish | Click it: the camera goes with it, and can come right up to it | Tap it |
@@ -31,7 +33,7 @@ wide screen or a tall one.
 | The covered tank | Click it. The cloth comes off only with every lamp out | Tap it |
 | Put a tank on an empty shelf | The price buttons on the plate over it | The same |
 
-Along the bottom: FEED, HAND, SCRUB and TORCH pick the tool, LAMP turns the light on and off, WATER changes
+Along the bottom: FEED, HAND, NET, SCRUB, MIRROR and TORCH pick the tool, LAMP turns the light on and off, WATER changes
 the water (once every six hours), SHOP and DEX open their sheets.
 
 The tank keeps real time, like a real one. It goes on while the game is shut: the save holds
@@ -192,7 +194,7 @@ godot --path . -- --no-save --homes=C:/some/folder      # a screenshot of every 
 godot --headless --path . --export-release "Web" build/index.html
 ```
 
-`--no-save` starts from a new tank and writes nothing, so tests leave the real one alone.
+`--no-save` starts from a new tank and writes nothing, so tests leave the real one alone. The three automated tours (`--smoke`, `--shots=`, `--homes=`) never write the save whether or not it is given.
 `--seed=7` (any number) makes everything left to chance fall out the same way each run.
 
 `tools/check.sh` is what to run before a release: it keeps the tanks for months with a fixed

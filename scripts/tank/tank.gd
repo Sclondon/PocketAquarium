@@ -121,6 +121,9 @@ var finger: Variant = null
 ## whether it is the red one, which the animals take no notice of.
 var torch: Variant = null
 var torch_red := true
+## Where the keeper holds a mirror to the glass, in the tank's own space (null when put away).
+var mirror: Variant = null
+var _mirror_node: MeshInstance3D
 ## Seconds left of the animals coming to say hello (see `greet`).
 var greeting := 0.0
 ## How many times each kind of thing has passed between the animals (see `notice`).
@@ -918,6 +921,47 @@ func point_at(at: Variant, speed := 0.0) -> void:
 func shine(at: Variant, red := true) -> void:
 	torch = at
 	torch_red = red
+
+
+
+## Holds a mirror to the glass at a place (null puts it away). What an animal makes of the
+## stranger in it goes by its temper: some square up to it, some peer at it, some hide.
+func hold_mirror(at: Variant) -> void:
+	mirror = at
+	if _mirror_node == null:
+		var glass := BoxMesh.new()
+		glass.size = Vector3(0.24, 0.18, 0.012)
+		var back := StandardMaterial3D.new()
+		back.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		back.albedo_color = Color(0.2, 0.17, 0.15)
+		_mirror_node = _instance(glass, back)
+		var rim := BoxMesh.new()
+		rim.size = Vector3(0.27, 0.21, 0.008)
+		var brass := StandardMaterial3D.new()
+		brass.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		brass.albedo_color = Color(0.5, 0.38, 0.16)
+		var frame := _instance(rim, brass)
+		frame.position.z = -0.004
+		_mirror_node.add_child(frame)
+		add_child(_mirror_node)
+	_mirror_node.visible = at != null
+	if at != null:
+		_mirror_node.position = Vector3(at.x, clampf(at.y, 0.25, height - 0.2), depth * 0.5 + 0.02)
+
+
+## Draws a net through the water along a line from the eye: whatever food it meets comes out
+## before it can rot, and whoever is close by gets out of the way. Returns how much it took.
+func scoop(from: Vector3, dir: Vector3) -> int:
+	var took := 0
+	for food in _foods.duplicate():
+		if food.get("held", false):
+			continue
+		var to: Vector3 = food.node.position - from
+		if (to - dir * to.dot(dir)).length() < 0.14:
+			_foods.erase(food)
+			food.node.queue_free()
+			took += 1
+	return took
 
 
 ## Something passed between two animals, or between one and the keeper, that a watcher would

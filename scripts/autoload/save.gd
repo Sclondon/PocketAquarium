@@ -16,7 +16,9 @@ var enabled := true
 
 
 func _ready() -> void:
-	if "--no-save" in OS.get_cmdline_user_args():
+	# (the automated tours never touch the real save, asked or not)
+	var args := Array(OS.get_cmdline_user_args())
+	if "--no-save" in args or "--smoke" in args or args.any(func(a: String) -> bool: return a.begins_with("--shots=") or a.begins_with("--homes=")):
 		enabled = false
 		data = {"version": VERSION}
 		return
