@@ -144,9 +144,22 @@ func setup() -> void:
 	bar.add_theme_constant_override("h_separation", 5)
 	bar.add_theme_constant_override("v_separation", 5)
 	# (on a narrow screen the keys run to a second row, and the card moves up out of their way)
-	bar.resized.connect(func() -> void:
+	# (on one too narrow for a single row, the tools take the first row and the rest the second)
+	var row_break := Control.new()
+	row_break.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row_break.visible = false
+	var fit_bar := func() -> void:
+		var one_row := -5.0
+		for key in bar.get_children():
+			if key is Button and key.visible:
+				one_row += key.get_combined_minimum_size().x + 5.0
+		var narrow := bar.size.x < one_row
+		if row_break.visible != narrow:
+			row_break.custom_minimum_size.x = bar.size.x - 2.0 if narrow else 0.0
+			row_break.visible = narrow
 		if _card != null:
-			_card.offset_bottom = -(bar.size.y + 22.0))
+			_card.offset_bottom = -(bar.size.y + 22.0)
+	bar.resized.connect(func() -> void: fit_bar.call_deferred())
 	bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	root.add_child(bar)
 	for tool: String in ["feed", "hand", "net", "scrub", "mirror", "torch"]:
@@ -154,6 +167,7 @@ func setup() -> void:
 		bar.add_child(b)
 		_tools[tool] = b
 		_tank_only.append(b)
+	bar.add_child(row_break)
 	_lamp = UiKit.button("LAMP", func() -> void: tank.set_lamp(not tank.lamp_on), KEY)
 	bar.add_child(_lamp)
 	_water = UiKit.button("WATER", _change_water, KEY)
@@ -169,7 +183,8 @@ func setup() -> void:
 	bar.add_child(shop_button)
 	bar.add_child(UiKit.button("BOOK", dex.open, KEY))
 	for b in bar.get_children():
-		b.add_theme_font_size_override("font_size", 17)
+		if b is Button:
+			b.add_theme_font_size_override("font_size", 17)
 	_tank_only.append_array([_lamp, _water, shop_button])
 
 	# up and down the shelf, at the right-hand edge
