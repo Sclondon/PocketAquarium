@@ -119,6 +119,11 @@ graze the glass, multiply while there is algae, and are what a pea puffer eats.
 A pair about to lay courts first, circling, if the keeper is there to see it; and an animal
 with eggs waiting stands over them and sees the others off.
 
+Two things show that a tank is being kept well. After a change of water everyone in it tears
+about for a few seconds. And a betta or a sparkling gourami that is well, fed, and in clean
+water of the right kind builds a raft of bubbles at the surface over about half a day of tank
+time. It takes real trouble (foul water, hunger, sickness) to make it give the nest up.
+
 ## The book
 
 BOOK opens the book: its first half is every kind of animal, filled in as each is kept, and

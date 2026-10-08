@@ -88,6 +88,8 @@ var _hop := 0.0
 var _seen_by_torch := false
 ## How long it has been at the mirror this time: it loses interest in the end.
 var _at_mirror := 0.0
+## How much longer it will tear about for the joy of it (see `frisk`).
+var _frisky := 0.0
 ## A push away from whoever is too close, so they gather round a thing and do not pile into it.
 var _apart := Vector3.ZERO
 ## Whether it is the one the keeper has in hand (its outline says so).
@@ -209,6 +211,14 @@ func appetite() -> String:
 
 
 ## Bolts away from a point.
+## Sets it tearing about the tank for a while, as they do in new water.
+func frisk(seconds: float) -> void:
+	if _plan == "jelly" or Species.habit(species, "pest") or Species.habit(species, "still"):
+		return
+	_frisky = seconds
+	buddy.note("Tore about in the new water")
+
+
 func startle(from: Vector3) -> void:
 	if dead:
 		return
@@ -343,6 +353,9 @@ func _decide() -> void:
 	_with = null
 	var stage := buddy.stage()
 	var temper := buddy.temper
+	if _frisky > 0.0 and tank.lamp_on:
+		doing = "playing"
+		return
 	if tank.lamp_on:
 		_seen_by_torch = false
 	if tank.torch != null:
@@ -550,6 +563,15 @@ func _steer(delta: float, box: AABB) -> void:
 			_target = (Vector3(m.x, m.y, front) + Vector3(sin(buddy.id * 2.4), cos(buddy.id * 1.7), 0.0) * (0.06 + reach())).clamp(box.position, box.end)
 			_pace = 0.7
 			_at_mirror += delta * 0.6
+		"playing":
+			_frisky -= delta
+			_retarget -= delta
+			if _retarget <= 0.0 or position.distance_to(_target) < 0.15:
+				_retarget = _rng.randf_range(0.5, 1.1)
+				_target = box.position + box.size * Vector3(_rng.randf(), _rng.randf(), _rng.randf())
+			_pace = 2.1
+			if _frisky <= 0.0:
+				doing = "wandering"
 		"hiding", "sulking":
 			_target = tank.hide_for(position)
 			_pace = 1.4 if doing == "hiding" else 0.5
@@ -660,6 +682,8 @@ func mood() -> String:
 			return "saying hello"
 		"following":
 			return "at your finger"
+		"playing":
+			return "tearing about in the new water"
 		"flaring":
 			return "squaring up to the mirror"
 		"peering":

@@ -558,6 +558,8 @@ func _look_for_pages() -> void:
 			note("mirror")
 		if t.seen.has("hunted"):
 			note("hunt")
+		if t.seen.has("built a nest"):
+			note("nest")
 		if t.seen.has("watched at night"):
 			note("night")
 		if t.torch != null and t.torch_red:

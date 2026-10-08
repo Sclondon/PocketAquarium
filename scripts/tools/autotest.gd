@@ -258,6 +258,14 @@ func _shots() -> void:
 	await _shot("2g_live_food")
 	await _settle(6.0)
 	print("hunted: ", tank.seen.get("hunted", 0))
+	for f in tank.fish:
+		if Species.habit(f.species, "nests"):
+			f.buddy.nest = 1.0
+	tank.change_water()
+	await _settle(2.5)
+	await _shot("2h_new_water")
+	print("playing: ", tank.fish.filter(func(f: Node) -> bool: return f.doing == "playing").size(), " nests: ", tank.get("_nests").size())
+	await _settle(8.0)
 	main.hud.page.show_page(tank.fish[2])
 	await _settle(0.5)
 	await _shot("2e_its_page")

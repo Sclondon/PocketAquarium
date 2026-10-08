@@ -44,6 +44,9 @@ var met := 0.0
 ## for its colour, how deep its colour is: 0 washed out to 1 as deep as they come.
 var born_here := false
 var grade := 0.35
+## How much of a bubble nest it has built at the top of the water (0 none, 1 a whole one), for
+## a kind that builds one when it likes where it lives.
+var nest := 0.0
 ## How it stands with each of the others, by their id: -1 (rivals) to 1 (friends).
 var ties := {}
 ## Where in the tank it likes to be: each number 0 to 1, across, up and back.
@@ -144,7 +147,7 @@ func to_data() -> Dictionary:
 	for other: int in ties:
 		if absf(ties[other]) > 0.05:
 			kept[str(other)] = snappedf(ties[other], 0.01)
-	return {"id": id, "temper": temper, "bond": bond, "visited": visited, "met": met, "born": born_here, "grade": grade, "ties": kept,
+	return {"id": id, "temper": temper, "bond": bond, "visited": visited, "met": met, "born": born_here, "grade": grade, "nest": snappedf(nest, 0.01), "ties": kept,
 			"spot": [spot.x, spot.y, spot.z], "moments": moments}
 
 
@@ -163,6 +166,7 @@ func load_data(data: Dictionary, rng: RandomNumberGenerator) -> void:
 	met = float(data.get("met", 0.0))
 	born_here = bool(data.get("born", false))
 	grade = clampf(data.get("grade", 0.35), 0.0, 1.0)
+	nest = clampf(data.get("nest", 0.0), 0.0, 1.0)
 	ties.clear()
 	var saved: Dictionary = data.get("ties", {})
 	for other: String in saved:

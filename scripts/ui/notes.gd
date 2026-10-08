@@ -35,6 +35,8 @@ Everything else on this shelf wants something from me. This wants a window."],
 			"Put a spoonful of water fleas in and the whole tank changed its mind about what sort of afternoon it was. The puffer went the length of the glass for one. The frogs want crickets and will take nothing that does not move.
 
 Flake keeps them alive. This is what they are for."],
+	"nest": ["Bubbles",
+			"Admiral has built a raft of bubbles in the corner by the heater. It took him all day and he is insufferable about it. There is no one to put eggs in it and he does not seem to mind.\n\nThe book says they build when the water is good and they are fed and nothing is bothering them. So that is one of us."],
 	"pests": ["Uninvited",
 			"There are snails in the tank that I did not buy. They came in on a plant, as eggs. One is nothing. Forty is the week after. They do no harm, and they clean the glass; but if you want them gone, the net takes them one at a time, and a pea puffer takes them faster."],
 	"cloth": ["The one on top",

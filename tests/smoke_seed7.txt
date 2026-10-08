@@ -1,27 +1,27 @@
 smoke: a new tank, fed daily
-smoke:   after 60 days: 6 living; 2 hatched, 0 died, 0 eggs waiting; hunger 0.33
-smoke:   worst waste 0.67, lowest oxygen 0.71, algae 0.69, crowd 3.4/5, dex 3/65 ["betta", "kuhli", "moonfish"]
-smoke:   between the animals, 8.4 things a minute watched: { "chase": 754, "fell out": 1, "made friends": 1, "kept company": 249 }
+smoke:   after 60 days: 6 living; 2 hatched, 0 died, 0 eggs waiting; hunger 0.35
+smoke:   worst waste 0.70, lowest oxygen 0.73, algae 0.71, crowd 3.2/5, dex 3/65 ["betta", "kuhli", "moonfish"]
+smoke:   between the animals, 8.1 things a minute watched: { "chase": 762, "built a nest": 5, "played in the new water": 8, "fell out": 2, "made friends": 1, "kept company": 197 }
 smoke: a full tank with everything fitted, fed daily
-smoke:   after 120 days: 13 living; 3 hatched, 6 died, 0 eggs waiting; hunger 0.33
-smoke:   worst waste 0.94, lowest oxygen 0.76, algae 0.08, crowd 10.2/15, dex 10/65 ["betta", "kuhli", "moonfish", "pest_snail", "tetra", "goldfish", "angelfish", "clownfish", "puffer", "bumblepuff"]
-smoke:   the dead, by kind: { "pest_snail": 6 }
-smoke:   between the animals, 18.3 things a minute watched: { "chase": 1490, "fell out": 13, "made friends": 20, "kept company": 2825, "guarded its eggs": 47 }
+smoke:   after 120 days: 14 living; 10 hatched, 8 died, 0 eggs waiting; hunger 0.33
+smoke:   worst waste 1.00, lowest oxygen 0.75, algae 0.09, crowd 10.4/15, dex 10/65 ["betta", "kuhli", "moonfish", "pest_snail", "tetra", "goldfish", "angelfish", "clownfish", "puffer", "bumblepuff"]
+smoke:   the dead, by kind: { "pest_snail": 8 }
+smoke:   between the animals, 12.2 things a minute watched: { "chase": 1051, "fell out": 10, "built a nest": 6, "made friends": 30, "kept company": 1774, "guarded its eggs": 44, "played in the new water": 17 }
 smoke: said: You were away 3 days.
-smoke: reloaded 13 fish and 0 eggs after 3 days away; first fish's hunger 0.33 -> 1.00
+smoke: reloaded 14 fish and 0 eggs after 3 days away; first fish's hunger 0.33 -> 1.00
 smoke: left alone, the last of the fish died on day 5; waste 0.32, algae 0.67
 smoke: a magic salt water tank, fed daily
 smoke:   after 60 days: 7 living; 0 hatched, 0 died, 0 eggs waiting; hunger 0.33
-smoke:   worst waste 0.53, lowest oxygen 0.72, algae 0.74, crowd 13.5/15, dex 16/65 ["betta", "kuhli", "moonfish", "pest_snail", "tetra", "goldfish", "angelfish", "clownfish", "puffer", "bumblepuff", "jellyfish", "salmon", "tuna", "shark", "giant_squid", "blue_whale"]
-smoke:   between the animals, 2.9 things a minute watched: { "made friends": 7, "chase": 11, "fell out": 4, "kept company": 322 }
+smoke:   worst waste 0.53, lowest oxygen 0.72, algae 0.76, crowd 13.5/15, dex 16/65 ["betta", "kuhli", "moonfish", "pest_snail", "tetra", "goldfish", "angelfish", "clownfish", "puffer", "bumblepuff", "jellyfish", "salmon", "tuna", "shark", "giant_squid", "blue_whale"]
+smoke:   between the animals, 8.4 things a minute watched: { "chase": 359, "made friends": 6, "fell out": 2, "kept company": 636, "played in the new water": 8 }
 smoke: saved 2 tanks, dex 16
 smoke: a brine kit after 40 days: 34 sea monkeys (most 97), 2 eggs, salt 0.71
 smoke: a brine kit never fed, after 20 days: 0 sea monkeys
 smoke: a vivarium misted daily for 30 days: 2 of 3 living, damp 0.70, first death on day 1
 smoke: a vivarium never misted for 30 days: 0 of 3 living, damp 0.00, first death on day 1
-smoke: a sealed jar let alone for 60 days: 4 of 4 living (and 7 born), glass 0.06, water 0.20
+smoke: a sealed jar let alone for 60 days: 4 of 4 living (and 6 born), glass 0.07, water 0.20
 smoke: a sealed jar kept in the dark for 60 days: 0 of 4 living (and 0 born), glass 1.00, water 1.00
-smoke: a sealed jar fed daily and opened weekly for 60 days: 4 of 4 living (and 5 born), glass 0.18, water 0.52
+smoke: a sealed jar fed daily and opened weekly for 60 days: 4 of 4 living (and 6 born), glass 0.10, water 0.43
 smoke: moved Admiral: 3 fish left behind (of 4), arrived as Admiral with bond 0.6
 smoke: an old save came up to version 3: 3 of 3 fish loaded, wallet 40
 smoke: an old save came up to version 3: 4 of 4 fish loaded, wallet none

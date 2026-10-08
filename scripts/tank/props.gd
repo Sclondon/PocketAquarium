@@ -277,6 +277,20 @@ static func bug(cricket: bool) -> ArrayMesh:
 	return mb.build()
 
 
+## A raft of bubbles, as a betta blows at the top of the water: about a hand across.
+static func bubble_nest() -> ArrayMesh:
+	var mb := MB.new()
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 11
+	for i in 22:
+		var turn := rng.randf() * TAU
+		var out := sqrt(rng.randf()) * 0.13
+		var r := rng.randf_range(0.014, 0.026)
+		var col := glow(Color(0.92, 0.97, 1.0, 0.75), 0.25)
+		blob(mb, Vector3(cos(turn) * out, r * 0.4, sin(turn) * out * 0.7), Vector3(r, r, r), rng, col, 5, 3, 0.0, 0.02)
+	return mb.build()
+
+
 static func egg() -> ArrayMesh:
 	var mb := MB.new()
 	var rng := RandomNumberGenerator.new()

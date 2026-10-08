@@ -50,7 +50,7 @@ const LIST := {
 	"betta": {
 		"name": "Betta", "blurb": "All fins and attitude.",
 		"price": 120, "home": ["fresh"], "size": 0.9, "load": 0.8, "speed": 0.75,
-		"habits": {"hunts": true},
+		"habits": {"nests": true, "hunts": true},
 		"look": {"back": Color(0.45, 0.05, 0.12), "side": Color(0.8, 0.1, 0.2), "belly": Color(0.9, 0.3, 0.35),
 			"fin": Color(0.35, 0.15, 0.7), "tip": Color(0.3, 0.75, 0.95), "tall": 0.85, "tail_len": 1.15, "spread": 1.25, "fork": 0.0,
 			"droop": 0.3, "dorsal": 0.5, "anal": 0.55, "sweep": 0.3},
@@ -87,7 +87,7 @@ const LIST := {
 	},
 	"sparkling_gourami": {
 		"name": "Sparkling Gourami", "blurb": "Thumb-sized and spangled. Two of them together will croak at each other.",
-		"price": 90, "size": 0.6, "load": 0.4, "speed": 0.7, "home": ["fresh"], "habits": {"croaks": true},
+		"price": 90, "size": 0.6, "load": 0.4, "speed": 0.7, "home": ["fresh"], "habits": {"nests": true, "croaks": true},
 		"look": {"back": Color(0.42, 0.3, 0.18), "side": Color(0.72, 0.56, 0.36), "belly": Color(0.9, 0.8, 0.62), "fin": Color(0.85, 0.22, 0.16)},
 	},
 	"white_cloud": {
@@ -502,7 +502,8 @@ const GUARDS := ["betta", "midnight_betta", "clownfish", "shark", "mudskipper", 
 ## One of a kind's ways (`habits` in its entry): `night` for one that hides by day and comes out
 ## in the dark; `level`, "top", "middle" or "bottom", for one that keeps to a part of the water;
 ## `wag`, how far it bends as it swims; `croaks` for one that calls to its own kind; `hunts` for one that would sooner have
-## live food than flake, and is the better for catching it; `grazes` for
+## live food than flake, and is the better for catching it; `nests` for one that builds a raft of bubbles when it is
+## content; `grazes` for
 ## one that lives on the green film and takes no food; `most`, the biggest colony its kind will
 ## breed up to, and `slow`, how many times longer than most it waits between broods.
 static func habit(id: String, what: String, otherwise: Variant = false) -> Variant:

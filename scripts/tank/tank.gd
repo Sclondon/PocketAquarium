@@ -152,6 +152,10 @@ var _eggs: Array[Dictionary] = []
 var _critters: Array[Dictionary] = []
 var _flake: ArrayMesh
 var _bugs: Array[ArrayMesh] = []
+var _nest_mesh: ArrayMesh
+## The bubble nests there are to see, by the builder's id.
+var _nests := {}
+var _nest_check := 0.0
 ## Whether the food being given is alive (water fleas; on dry land it is always crickets).
 var live_food := false
 var _egg: ArrayMesh
@@ -194,6 +198,7 @@ func _ready() -> void:
 	_hood.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	_flake = Props.flake()
 	_bugs = [Props.bug(false), Props.bug(true)]
+	_nest_mesh = Props.bubble_nest()
 	_egg = Props.egg()
 
 	# the lamp in the hood: it lights the shelf round the tank as well as what is in it
@@ -454,6 +459,7 @@ func elapse(seconds: float) -> void:
 		_step_water(dt)
 		_step_eggs(dt)
 		_try_breeding(dt)
+		_grow_nests(dt)
 	_quiet = false
 
 
@@ -765,6 +771,12 @@ func change_water() -> void:
 		water.colony *= 0.3
 		algae *= 0.3
 	o2 = lerpf(o2, 1.0, 0.5)
+	# (new water is the best thing that happens all week, and they show it)
+	if not _quiet:
+		for f in fish:
+			if not f.dead:
+				f.frisk(_rng.randf_range(5.0, 9.0))
+		notice("played in the new water", null)
 	# (fresh water in puts the salt back where it should be, and damps the air of a paludarium)
 	salt = float(about().get("salt", 0.0))
 	humidity = minf(humidity + MIST, 1.0)
@@ -1030,6 +1042,7 @@ func step(delta: float) -> void:
 	_step_courting(delta)
 	_step_eggs(lived)
 	_try_breeding(lived)
+	_step_nests(delta, lived)
 	_step_looks(lerpf(0.15, 1.0, _lamp))
 
 
@@ -1120,6 +1133,53 @@ func _step_live(food: Dictionary, delta: float) -> void:
 		_foods.erase(food)
 		node.queue_free()
 		waste = minf(waste + FOOD_ROT * 0.5, 1.0)
+
+
+## How the bubble nests come on over `dt` seconds of tank time: one that is well and fed, in
+## clean water, builds a whole one in about half a day; one that is not lets it go.
+func _grow_nests(dt: float) -> void:
+	for f in fish:
+		if f.dead or not Species.habit(f.species, "nests"):
+			continue
+		var content: bool = f.is_adult() and f.health > 0.8 and f.hunger < 0.6 and waste < 0.4 and discomfort(f.species) < 0.1
+		var was: float = f.buddy.nest
+		# (it takes real trouble to make it give one up: a dip is not enough)
+		var troubled: bool = f.health < 0.6 or f.hunger > 0.85 or waste > 0.65 or discomfort(f.species) > 0.3
+		f.buddy.nest = clampf(was + (dt / (0.5 * DAY) if content else (-dt / (0.25 * DAY) if troubled else 0.0)), 0.0, 1.0)
+		if was < 1.0 and f.buddy.nest >= 1.0:
+			f.buddy.note("Built a nest of bubbles")
+			notice("built a nest", f)
+			_say("%s has built a nest of bubbles. They only do that where they mean to stay." % f.fish_name, "egg", 1.3)
+
+
+## The nests themselves: a raft of bubbles over each builder's own corner, as big as it has got.
+func _step_nests(delta: float, lived: float) -> void:
+	_nest_check -= delta
+	if _nest_check > 0.0:
+		return
+	_grow_nests(lived / maxf(delta, 0.0001) * 0.5)
+	_nest_check = 0.5
+	var builders := {}
+	for f in fish:
+		if not f.dead and f.buddy.nest > 0.05:
+			builders[f.buddy.id] = f
+	for id: int in _nests.keys():
+		if not is_instance_valid(_nests[id]):
+			_nests.erase(id)
+		elif not builders.has(id):
+			(_nests[id] as Node).queue_free()
+			_nests.erase(id)
+	for id: int in builders:
+		var f: Fish = builders[id]
+		if not _nests.has(id):
+			var raft := _instance(_nest_mesh, _mat)
+			_life.add_child(raft)
+			_nests[id] = raft
+		var box := swim_box(0.2)
+		var at: Vector3 = box.position + box.size * Vector3(f.buddy.spot.x, 1.0, 0.15 + 0.3 * f.buddy.spot.z)
+		var node: MeshInstance3D = _nests[id]
+		node.position = Vector3(at.x, water_level - 0.012, at.z)
+		node.scale = Vector3.ONE * lerpf(0.3, 1.0, f.buddy.nest)
 
 
 func _add_critter_node(kind: String) -> void:
