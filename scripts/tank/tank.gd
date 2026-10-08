@@ -29,13 +29,10 @@ const Props := preload("res://scripts/tank/props.gd")
 const Species := preload("res://scripts/tank/species.gd")
 const Fish := preload("res://scripts/tank/fish.gd")
 const Water := preload("res://scripts/sim/water.gd")
+const Swarm := preload("res://scripts/sim/swarm.gd")
 
-## The tanks, smallest first: metres, how much fish it holds (the sum of their `load`), price.
-const SIZES := [
-	{"name": "Pocket tank", "w": 2.2, "h": 1.5, "d": 1.2, "room": 5.0, "price": 0},
-	{"name": "Desk tank", "w": 3.0, "h": 1.8, "d": 1.4, "room": 9.0, "price": 150},
-	{"name": "Showpiece tank", "w": 4.0, "h": 2.1, "d": 1.7, "room": 15.0, "price": 400},
-]
+const Kinds := preload("res://scripts/tank/kinds.gd")
+
 const MAX_PLANTS := 8
 const MAX_SNAILS := 3
 const MAX_SHRIMPS := 3
@@ -57,16 +54,7 @@ const WATER_WAIT := 6.0 * 3600.0
 ## The longest time away that is caught up on.
 const MAX_AWAY := 30.0 * DAY
 
-const CLEAN_WATER := Color(0.72, 0.5, 0.24)
-const SEA_WATER := Color(0.1, 0.3, 0.9)
 const FOUL_WATER := Color(0.36, 0.4, 0.12)
-## The light in each kind of tank: the colour of its lamp, the tone of what the lamp does not
-## reach, what things fade into toward the back pane (see water_common.gdshaderinc), and the
-## colour the lamp throws out into the room.
-const LOOKS := {
-	"fresh": {"key": Color(1.0, 0.9, 0.72), "shadow": Color(0.3, 0.2, 0.36), "haze": Color(0.2, 0.11, 0.05), "spill": Color(1.0, 0.8, 0.58), "ink": Color(0.05, 0.03, 0.08)},
-	"sea": {"key": Color(0.7, 0.86, 1.0), "shadow": Color(0.12, 0.14, 0.42), "haze": Color(0.02, 0.05, 0.2), "spill": Color(0.4, 0.55, 1.0), "ink": Color(0.3, 0.42, 0.8)},
-}
 ## What was in the first tank when the keeper came to it: the last keeper's fish, which do not
 ## know this one yet.
 const LEFT_BEHIND := [
@@ -75,11 +63,16 @@ const LEFT_BEHIND := [
 	{"species": "kuhli", "name": "Knot", "buddy": {"temper": "curious", "bond": 0.1}},
 	{"species": "kuhli", "name": "Mrs Noodle", "buddy": {"temper": "greedy", "bond": 0.1}},
 ]
-## What a new tank costs, by kind.
-const PRICES := {"fresh": 200, "sea": 500}
-const KIND_NAMES := {"fresh": "Fresh water tank", "sea": "Magic salt water tank"}
+## What its air loses of its damp in a day, what a misting puts back, and what the salt in its
+## water gains in a day as the water dries off (for the kinds that have either to mind).
+const DRIES := 0.3
+const MIST := 0.45
+const SALT_CREEP := 0.035
+## A new tank's filter is not alive yet: how much of the work it does to start with (it is
+## grown in about four days: see sim/water.gd).
+const NEW_COLONY := 0.2
 
-## "fresh" or "sea"
+## Which kind of home it is (see kinds.gd)
 var kind := "fresh"
 var size_id := 0
 var width := 2.2
@@ -116,6 +109,12 @@ var algae: float:
 		water.algae = value
 var lamp_on := true
 var water_wait := 0.0
+## The colony of tiny animals it keeps by the hundred (sim/swarm.gd), for a kind that keeps
+## one (null for the rest).
+var swarm: Swarm
+## How damp its air is and how salty its water (0 to 1), for the kinds that have either to mind.
+var humidity := 0.8
+var salt := 0.0
 ## Where the keeper's finger is on the glass, in the tank's own space (null when it is not).
 var finger: Variant = null
 ## Where the keeper's torch shines into the tank, in its own space (null while it is off), and
@@ -160,6 +159,7 @@ var _lamp := 1.0
 ## Where each shoaling kind is heading, and until when (see `shoal_goal`).
 var _shoals := {}
 var _next_id := 1
+var _specks: MultiMeshInstance3D
 
 
 func _ready() -> void:
@@ -212,6 +212,22 @@ func _ready() -> void:
 	mm.instance_count = 18
 	_bubbles.multimesh = mm
 	add_child(_bubbles)
+	# the colony, for a kind that keeps one: each animal a speck with a tail, all one mesh
+	_specks = MultiMeshInstance3D.new()
+	var many := MultiMesh.new()
+	many.transform_format = MultiMesh.TRANSFORM_3D
+	var speck := MB.new()
+	var pink := Color(1.0, 0.72, 0.6)
+	for side: Array in [[Vector3(0.3, 0.0, 0.0), Vector3(0.0, 0.3, 0.0)], [Vector3(0.0, 0.3, 0.0), Vector3(-0.3, 0.0, 0.0)],
+			[Vector3(-0.3, 0.0, 0.0), Vector3(0.0, -0.3, 0.0)], [Vector3(0.0, -0.3, 0.0), Vector3(0.3, 0.0, 0.0)]]:
+		speck.tri(Vector3(0.0, 0.0, -0.5), side[0], side[1], pink, side[0] + side[1])
+		speck.tri(Vector3(0.0, 0.0, 1.0), side[1], side[0], Props.shade(pink, 0.8), side[0] + side[1])
+	many.mesh = speck.build()
+	many.instance_count = int(Swarm.MOST)
+	_specks.multimesh = many
+	_specks.material_override = _mat
+	_specks.visible = false
+	add_child(_specks)
 
 
 func _process(delta: float) -> void:
@@ -231,13 +247,30 @@ func inside() -> AABB:
 ## Where a fish may be: the water, kept `margin` clear of the glass, gravel and surface.
 func swim_box(margin: float) -> AABB:
 	var low := Vector3(-width * 0.5 + margin, 0.22 + margin * 0.5, -depth * 0.5 + margin)
+	if about().get("bank", false):
+		# (the water is the half that is not the bank)
+		low.x = width * 0.08
 	var high := Vector3(width * 0.5 - margin, water_level - margin, depth * 0.5 - margin)
 	return AABB(low, (high - low).max(Vector3.ONE * 0.01))
 
 
-## How high the gravel is at a place.
+## Where an animal on foot may be: the floor, kept clear of the glass, and (for a climber) the
+## back wall up to most of its height. In a home with a bank, one that only walks keeps to it.
+func walk_box(gait: String) -> AABB:
+	var low := Vector3(-width * 0.5 + 0.12, 0.0, -depth * 0.5 + 0.1)
+	var high := Vector3(width * 0.5 - 0.12, height * 0.8 if gait in ["climb", "glide"] else 0.6, depth * 0.5 - 0.12)
+	if about().get("bank", false) and gait != "glide":
+		high.x = -width * 0.06
+	return AABB(low, high - low)
+
+
+## How high the gravel is at a place. A home with a bank has one along its left side, rising
+## out of the water.
 func floor_y(x: float, z: float) -> float:
-	return 0.1 + 0.035 * sin(x * 3.1 + 1.0) * cos(z * 4.3) + 0.02 * sin(x * 7.7 + z * 5.1)
+	var ground := 0.1 + 0.035 * sin(x * 3.1 + 1.0) * cos(z * 4.3) + 0.02 * sin(x * 7.7 + z * 5.1)
+	if about().get("bank", false):
+		ground += smoothstep(width * 0.08, -width * 0.12, x) * (water_level + 0.05)
+	return ground
 
 
 ## How much room the fish take up (and the eggs will), out of capacity().
@@ -250,7 +283,52 @@ func crowd() -> float:
 
 
 func capacity() -> float:
-	return SIZES[size_id].room
+	return sizes()[size_id].room
+
+
+## What this kind of home is like (its entry in kinds.gd), and the sizes it comes in.
+func about() -> Dictionary:
+	return Kinds.of(kind)
+
+
+func sizes() -> Array:
+	return about().sizes
+
+
+## Whether it has water in it at all.
+func is_wet() -> bool:
+	return Kinds.is_wet(kind)
+
+
+## How warm it runs: 0 cold, 0.5 the room, 1 hot.
+func warmth() -> float:
+	return float(about().get("warm", 0.5)) + (float(about().get("heat_lamp", 0.0)) if lamp_on else 0.0)
+
+
+## How far what an animal of this kind wants is from what it has here, 0 (content) to 1, and
+## what it would say was wrong (empty when nothing is).
+func discomfort(species: String) -> float:
+	return float(_wrong(species)[0])
+
+
+func complaint(species: String) -> String:
+	return str(_wrong(species)[1])
+
+
+func _wrong(species: String) -> Array:
+	var wants: Dictionary = Species.LIST[species].get("wants", {})
+	var worst := 0.0
+	var what := ""
+	var have := {"warmth": warmth(), "humidity": humidity, "salt": salt}
+	var words := {"warmth": ["too cold", "too warm"], "humidity": ["too dry", "too wet"], "salt": ["not salty enough", "too salty"]}
+	for need: String in wants:
+		var band: Array = wants[need]
+		var value: float = have[need]
+		var off := clampf(maxf(float(band[0]) - value, value - float(band[1])) / 0.3, 0.0, 1.0)
+		if off > worst:
+			worst = off
+			what = words[need][0 if value < float(band[0]) else 1]
+	return [worst, what]
 
 
 func has_room_for(species: String) -> bool:
@@ -269,6 +347,8 @@ func to_data() -> Dictionary:
 		laid.append({"species": egg.species, "age": egg.age, "x": egg.node.position.x, "z": egg.node.position.z})
 	return {"kind": kind, "size": size_id, "plants": plants, "snails": snails, "shrimps": shrimps, "gear": gear.keys(),
 			"decor": decor.keys(), "dex": dex.keys(), "o2": o2, "waste": waste, "algae": algae, "lamp": lamp_on,
+			"colony": water.colony, "humidity": humidity, "salt": salt,
+			"swarm": swarm.to_data() if swarm != null else {},
 			"fish": kept, "eggs": laid, "age": age, "water_wait": water_wait,
 			"at": Time.get_unix_time_from_system()}
 
@@ -283,13 +363,15 @@ func load_state(data: Dictionary) -> void:
 		for item: Dictionary in list:
 			item.node.queue_free()
 		list.clear()
-	kind = "sea" if data.get("kind", "fresh") == "sea" else "fresh"
-	size_id = clampi(int(data.get("size", 0)), 0, SIZES.size() - 1)
-	plants = clampi(int(data.get("plants", 1)), 0, MAX_PLANTS)
+	kind = str(data.get("kind", "fresh"))
+	if not Kinds.LIST.has(kind):
+		kind = "fresh"
+	size_id = clampi(int(data.get("size", 0)), 0, sizes().size() - 1)
+	plants = clampi(int(data.get("plants", about().get("plants", 1))), 0, MAX_PLANTS)
 	snails = clampi(int(data.get("snails", 0)), 0, MAX_SNAILS)
 	shrimps = clampi(int(data.get("shrimps", 0)), 0, MAX_SHRIMPS)
 	gear = {}
-	for id in data.get("gear", []):
+	for id in data.get("gear", about().get("gear", [])):
 		gear[str(id)] = true
 	decor = {}
 	for id in data.get("decor", []):
@@ -301,17 +383,31 @@ func load_state(data: Dictionary) -> void:
 	waste = clampf(data.get("waste", 0.05), 0.0, 1.0)
 	algae = clampf(data.get("algae", 0.0), 0.0, 1.0)
 	lamp_on = data.get("lamp", true)
+	# (a tank from a save has been running: its filter is alive. One just bought is not)
+	water.colony = clampf(data.get("colony", NEW_COLONY if data.has("kind") and not data.has("fish") else 1.0), 0.0, 1.0)
+	swarm = null
+	if about().has("swarm"):
+		swarm = Swarm.new()
+		swarm.load_data(data.get("swarm", {}))
+	_specks.visible = swarm != null
+	humidity = clampf(data.get("humidity", 0.8), 0.0, 1.0)
+	salt = clampf(data.get("salt", about().get("salt", 0.0)), 0.0, 1.0)
 	age = maxf(data.get("age", 0.0), 0.0)
 	water_wait = clampf(data.get("water_wait", 0.0), 0.0, WATER_WAIT)
 	_lamp = 1.0 if lamp_on else 0.0
 	rebuild()
 	var saved: Array = data.get("fish", [])
-	if not data.has("fish") and kind == "fresh":
+	if not data.has("fish"):
 		# a tank that is bought comes with two guppies. The first tank of all was somebody else's
 		# before it was the keeper's, and what is in it has names already
-		saved = [{"species": "guppy"}, {"species": "guppy"}] if data.has("kind") else LEFT_BEHIND
+		saved = LEFT_BEHIND
+		if data.has("kind"):
+			saved = []
+			for id: String in about().get("starter", []):
+				saved.append({"species": id})
 	for entry in saved:
-		if entry is Dictionary and Species.LIST.has(str(entry.get("species", ""))) and Species.water(entry.species) == kind:
+		if entry is Dictionary and Species.LIST.has(str(entry.get("species", ""))):
+			# (whatever a save holds is let in, whether or not it belongs in this kind of home)
 			_spawn(entry)
 	for i in snails:
 		_add_critter_node("snail")
@@ -364,11 +460,11 @@ func _span(seconds: float) -> String:
 
 ## Builds the tank and its dressing again (after it grows, or something is bought).
 func rebuild() -> void:
-	var s: Dictionary = SIZES[size_id]
+	var s: Dictionary = sizes()[size_id]
 	width = s.w
 	height = s.h
 	depth = s.d
-	water_level = height * 0.92
+	water_level = height * float(about().water)
 	if _shell != null:
 		_shell.queue_free()
 	_shell = Node3D.new()
@@ -381,7 +477,7 @@ func rebuild() -> void:
 
 	# the frame: a base, a rim round the top, a post at each corner, and the hood with its lamp
 	var frame := MB.new()
-	var trim := Color(0.24, 0.26, 0.33) if kind == "fresh" else Color(0.3, 0.2, 0.42)
+	var trim := Color(0.3, 0.2, 0.42) if kind == "sea" else Color(0.24, 0.26, 0.33)
 	Props.box(frame, Vector3(0.0, -0.05, 0.0), Vector3(width + 0.1, 0.1, depth + 0.1), trim)
 	for sz: float in [-1.0, 1.0]:
 		Props.box(frame, Vector3(0.0, height, sz * hd), Vector3(width + 0.08, 0.05, 0.05), trim)
@@ -417,6 +513,7 @@ func rebuild() -> void:
 			Vector2(width, height), Vector2(0, height))
 	_shell.add_child(_instance(far.build(), _back))
 	_back.set_shader_parameter("level", water_level)
+	_back.set_shader_parameter("air", about().air)
 
 	var mb := MB.new()
 	# the sand, or gravel, in gentle humps (see sand.gdshader for its grain)
@@ -432,8 +529,8 @@ func rebuild() -> void:
 			bed.quad(Vector3(x0, floor_y(x0, z0), z0), Vector3(x1, floor_y(x1, z0), z0), Vector3(x1, floor_y(x1, z1), z1),
 					Vector3(x0, floor_y(x0, z1), z1), Color.WHITE, Vector3.UP)
 	_shell.add_child(_instance(bed.build(), _sand))
-	_sand.set_shader_parameter("sand", Color(0.8, 0.62, 0.4) if kind == "fresh" else Color(0.93, 0.89, 0.78))
-	_sand.set_shader_parameter("coarse", 0.8 if kind == "fresh" else 0.1)
+	_sand.set_shader_parameter("sand", about().sand)
+	_sand.set_shader_parameter("coarse", about().coarse)
 	# what stands on it
 	Props.rock(mb, _on_floor(-hw * 0.62, hd * 0.35), 0.16, rng)
 	Props.rock(mb, _on_floor(hw * 0.55, -hd * 0.5), 0.2, rng)
@@ -483,6 +580,7 @@ func rebuild() -> void:
 	top.mesh = sheet
 	top.material_override = _top
 	top.position.y = water_level
+	top.visible = is_wet()
 	_shell.add_child(top)
 	_bubbles.visible = gear.has("pump")
 
@@ -502,6 +600,10 @@ func _on_floor(x: float, z: float) -> Vector3:
 
 ## Sprinkles a pinch of food on the water above a place.
 func drop_food(x: float, z: float) -> void:
+	if swarm != null:
+		# (a colony is fed by clouding the water, not by the flake)
+		swarm.feed()
+		return
 	for i in 3:
 		if _foods.size() >= MAX_FOOD:
 			return
@@ -548,8 +650,16 @@ func can_change_water() -> bool:
 
 ## Swaps out most of the water for clean.
 func change_water() -> void:
+	if not is_wet():
+		# no water to change: the air is misted instead
+		humidity = minf(humidity + MIST, 1.0)
+		water_wait = 60.0
+		return
 	waste *= 0.35
 	o2 = lerpf(o2, 1.0, 0.5)
+	# (fresh water in puts the salt back where it should be, and damps the air of a paludarium)
+	salt = float(about().get("salt", 0.0))
+	humidity = minf(humidity + MIST, 1.0)
 	water_wait = WATER_WAIT
 
 
@@ -624,7 +734,7 @@ func place(id: String) -> void:
 
 ## Moves everything into the next tank up.
 func grow() -> void:
-	size_id = mini(size_id + 1, SIZES.size() - 1)
+	size_id = mini(size_id + 1, sizes().size() - 1)
 	rebuild()
 	for item: Dictionary in _eggs + _critters:
 		var p: Vector3 = item.node.position
@@ -754,7 +864,15 @@ func _step_water(dt: float) -> void:
 	var bodies := 0
 	for f in fish:
 		bodies += int(f.dead)
-	water.step(dt, crowd(), bodies, plants, snails, lamp_on, gear.has("pump"), gear.has("filter"))
+	if is_wet():
+		water.step(dt, crowd(), bodies, plants, snails, lamp_on, gear.has("pump"), gear.has("filter"))
+	if swarm != null:
+		waste = minf(waste + swarm.step(dt, absf(salt - float(about().get("salt", 0.0)))), 1.0)
+	# the air dries, and the salt creeps up as the water dries off
+	if about().get("humid", false):
+		humidity = maxf(humidity - DRIES * dt / DAY, 0.0)
+	if float(about().get("salt", 0.0)) > 0.0:
+		salt = minf(salt + SALT_CREEP * dt / DAY, 1.0)
 
 
 func _step_food(delta: float) -> void:
@@ -890,15 +1008,18 @@ func lamp_glow() -> float:
 ## The lamp, the colour of the water, the algae and the bubbles.
 func _step_looks(light: float) -> void:
 	_light.light_energy = 3.6 * _lamp
-	_hood.albedo_color = (LOOKS[kind].key as Color) * lerpf(0.06, 1.0, _lamp)
+	_hood.albedo_color = (about().look.key as Color) * lerpf(0.06, 1.0, _lamp)
 	var glow := lerpf(0.24, 1.0, _lamp)
-	var look: Dictionary = LOOKS[kind]
+	var look: Dictionary = about().look
+	# (the net of light is only on what is under the water)
+	var water_top := position.y + water_level if is_wet() else -1000.0
 	for mat: ShaderMaterial in [_mat, _plant_mat, _sand]:
 		mat.set_shader_parameter("lamp", glow)
 		mat.set_shader_parameter("key", look.key)
 		mat.set_shader_parameter("shadow", look.shadow)
 		mat.set_shader_parameter("haze", look.haze)
 		mat.set_shader_parameter("tank_depth", depth)
+		mat.set_shader_parameter("water_top", water_top)
 	var beam := Color(0.9, 0.12, 0.08) if torch_red else Color(1.0, 0.97, 0.88)
 	if torch == null:
 		beam = Color.BLACK
@@ -907,16 +1028,17 @@ func _step_looks(light: float) -> void:
 		mat.set_shader_parameter("torch_at", beam_at)
 		mat.set_shader_parameter("torch_light", beam)
 	for f in fish:
-		f.set_light(glow, look, depth)
+		f.set_light(glow, look, depth, water_top)
 		f.set_torch(beam_at, beam)
 	_light.light_color = look.spill
-	var colour := (CLEAN_WATER if kind == "fresh" else SEA_WATER).lerp(FOUL_WATER, waste)
+	var colour := (about().water_colour as Color).lerp(FOUL_WATER, waste)
 	for mat: ShaderMaterial in [_glass, _back, _top]:
 		mat.set_shader_parameter("water", colour)
 		mat.set_shader_parameter("light", lerpf(0.3, 1.0, light))
 	_back.set_shader_parameter("murk", waste)
 	_glass.set_shader_parameter("murk", waste)
 	_glass.set_shader_parameter("algae", algae)
+	_draw_swarm()
 	if not _bubbles.visible:
 		return
 	var mm := _bubbles.multimesh
@@ -925,6 +1047,27 @@ func _step_looks(light: float) -> void:
 		var t := fmod(_clock * 0.45 + i * 0.618, 1.0)
 		var at := _bubble_from + Vector3(sin(_clock * 3.0 + i * 1.7) * 0.04 * t, 0.06 + t * rise, cos(_clock * 2.3 + i) * 0.04 * t)
 		mm.set_instance_transform(i, Transform3D(Basis().scaled(Vector3.ONE * (0.025 + 0.02 * fmod(i * 0.37, 1.0))), at))
+
+
+## Puts a speck where each animal of the colony is: they mill about, drawn up toward the lamp
+## when it is on, and the young are smaller than the grown.
+func _draw_swarm() -> void:
+	if swarm == null:
+		return
+	var many := _specks.multimesh
+	var shown := mini(int(swarm.count()), many.instance_count)
+	many.visible_instance_count = shown
+	var box := swim_box(0.08)
+	var grown := int(swarm.grown)
+	for i in shown:
+		var a := i * 2.399
+		var t := _clock * (0.25 + 0.2 * fmod(i * 0.37, 1.0))
+		# (each goes round a path of its own, higher in the water while the lamp is on)
+		var at := box.position + box.size * Vector3(0.5 + 0.46 * sin(t + a) * cos(t * 0.37 + a * 1.7),
+				lerpf(0.3, 0.72, _lamp) + 0.28 * sin(t * 0.8 + a * 2.3), 0.5 + 0.46 * cos(t * 0.9 + a * 0.6))
+		var ahead := Vector3(cos(t + a), 0.4 * cos(t * 0.8 + a * 2.3), -sin(t * 0.9 + a * 0.6)).normalized()
+		var size := 0.035 if i < grown else 0.016
+		many.set_instance_transform(i, Transform3D(Basis.looking_at(ahead, Vector3.UP).scaled(Vector3.ONE * size), at))
 
 
 func _spawn(data: Dictionary) -> Fish:

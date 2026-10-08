@@ -20,6 +20,7 @@ const UiKit := preload("res://scripts/ui/ui_kit.gd")
 const Shop := preload("res://scripts/ui/shop.gd")
 const Dex := preload("res://scripts/ui/dex.gd")
 const Page := preload("res://scripts/ui/page.gd")
+const Homes := preload("res://scripts/ui/homes.gd")
 const FishIcon := preload("res://scripts/ui/fish_icon.gd")
 const Tank := preload("res://scripts/tank/tank.gd")
 
@@ -30,11 +31,13 @@ var tank
 var shop: Shop
 var dex: Dex
 var page: Page
+var homes: Homes
 
 var _tickets: Label
 var _wallet_note: Label
 var _day: Label
 var _gauges := {}
+var _gauge_names := {}
 var _tools := {}
 var _lamp: Button
 var _lamp_lit := false
@@ -56,7 +59,7 @@ var _tank_only: Array[Control] = []
 var _up: Button
 var _down: Button
 var _offer: PanelContainer
-var _offer_buttons := {}
+
 
 
 func setup() -> void:
@@ -103,11 +106,14 @@ func setup() -> void:
 	grid.add_theme_constant_override("h_separation", 8)
 	grid.add_theme_constant_override("v_separation", 0)
 	water.add_child(grid)
-	for gauge: Array in [["oxygen", "OXYGEN", UiKit.TEAL], ["clean", "WATER", UiKit.GOLD], ["glass", "GLASS", UiKit.GREEN], ["room", "ROOM", UiKit.CORAL]]:
-		grid.add_child(UiKit.label(gauge[1], 14, UiKit.PAPER, 0))
+	for gauge: Array in [["oxygen", "OXYGEN", UiKit.TEAL], ["clean", "WATER", UiKit.GOLD], ["settled", "FILTER", UiKit.OCHRE],
+			["glass", "GLASS", UiKit.GREEN], ["salt", "SALT", UiKit.TEAL], ["damp", "DAMP", UiKit.TEAL], ["swarm", "COLONY", UiKit.CORAL], ["fed", "FOOD", UiKit.OCHRE], ["room", "ROOM", UiKit.CORAL]]:
+		var name := UiKit.label(gauge[1], 14, UiKit.PAPER, 0)
+		grid.add_child(name)
 		var b := UiKit.bar(gauge[2])
 		grid.add_child(b)
 		_gauges[gauge[0]] = b
+		_gauge_names[gauge[0]] = name
 
 	# messages, on a plate of their own under the gauges
 	var middle := CenterContainer.new()
@@ -143,6 +149,8 @@ func setup() -> void:
 	shop = Shop.new()
 	dex = Dex.new()
 	page = Page.new()
+	homes = Homes.new()
+	homes.wanted.connect(func(kind: String) -> void: tank_wanted.emit(kind))
 	page.give_away.connect(func(fish: Node) -> void: give_away.emit(fish))
 	var shop_button := UiKit.button("SHOP", shop.open, KEY)
 	bar.add_child(shop_button)
@@ -166,7 +174,7 @@ func setup() -> void:
 
 	_build_card(root)
 	_build_offer(root)
-	for sheet: Control in [shop, dex, page]:
+	for sheet: Control in [shop, dex, page, homes]:
 		root.add_child(sheet)
 	pick_tool("feed")
 
@@ -183,31 +191,13 @@ func _build_offer(root: Control) -> void:
 	col.add_theme_constant_override("separation", 6)
 	_offer.add_child(col)
 	col.add_child(UiKit.label("An empty shelf", 28, UiKit.GOLD))
-	var blurbs := {"fresh": "Another tank like the first, with two guppies in it.",
-			"sea": "Holds the sea: salmon, sharks, whales, a giant squid. Do not ask how."}
-	for kind: String in ["fresh", "sea"]:
-		var row := HBoxContainer.new()
-		row.add_theme_constant_override("separation", 10)
-		col.add_child(row)
-		var words := VBoxContainer.new()
-		words.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		words.add_theme_constant_override("separation", -2)
-		words.custom_minimum_size.x = 300
-		words.add_child(UiKit.label(Tank.KIND_NAMES[kind], 21))
-		var line := UiKit.label(blurbs[kind], 16, Color(UiKit.PAPER, 0.8), 0)
-		line.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		words.add_child(line)
-		row.add_child(words)
-		var buy := UiKit.button(str(Tank.PRICES[kind]), func() -> void: tank_wanted.emit(kind), Vector2(96, 46))
-		buy.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-		row.add_child(buy)
-		_offer_buttons[kind] = buy
-	Tickets.changed.connect(_show_offer_prices)
+	var line := UiKit.label("Room for a tank, a jar or a terrarium.", 16, Color(UiKit.PAPER, 0.8), 0)
+	col.add_child(line)
+	col.add_child(UiKit.button("SEE WHAT WILL FIT", func() -> void: homes.open(), Vector2(220, 46)))
 
 
 func _show_offer_prices() -> void:
-	for kind: String in _offer_buttons:
-		(_offer_buttons[kind] as Button).disabled = Tank.PRICES[kind] > Tickets.balance
+	pass
 
 
 ## Turns the HUD to a slot of the shelf: its tank (null for an empty slot, which gets the
@@ -280,17 +270,26 @@ func _process(_delta: float) -> void:
 	if tank == null:
 		_day.text = ""
 		return
-	_set_gauge("oxygen", tank.o2)
-	_set_gauge("clean", 1.0 - tank.waste)
-	_set_gauge("glass", 1.0 - tank.algae)
-	_set_gauge("room", 1.0 - tank.crowd() / tank.capacity())
+	# each kind of home shows the gauges that mean something in it
+	var wet: bool = tank.is_wet()
+	var salty: bool = float(tank.about().get("salt", 0.0)) > 0.0
+	_set_gauge("oxygen", tank.o2, wet)
+	_set_gauge("clean", 1.0 - tank.waste, wet)
+	_set_gauge("settled", tank.water.colony, wet and tank.water.colony < 0.995)
+	_set_gauge("glass", 1.0 - tank.algae, wet)
+	# (salt reads full when it is just right, and falls as it creeps up)
+	_set_gauge("salt", 1.0 - absf(tank.salt - float(tank.about().get("salt", 0.0))) * 3.0, salty)
+	_set_gauge("damp", tank.humidity, tank.about().get("humid", false))
+	_set_gauge("room", 1.0 - tank.crowd() / tank.capacity(), tank.swarm == null)
+	_set_gauge("swarm", tank.swarm.count() / 240.0 if tank.swarm != null else 0.0, tank.swarm != null)
+	_set_gauge("fed", minf(tank.swarm.food, 1.0) if tank.swarm != null else 0.0, tank.swarm != null)
 	# (the lamp's button is lit while the lamp is)
 	if _lamp_lit != tank.lamp_on:
 		_lamp_lit = tank.lamp_on
 		UiKit.hold(_lamp, _lamp_lit)
 	_water.disabled = not tank.can_change_water()
 	if tank.can_change_water():
-		_water.text = "WATER"
+		_water.text = "WATER" if wet else "MIST"
 	elif tank.water_wait > 3600.0:
 		_water.text = "%d h" % ceili(tank.water_wait / 3600.0)
 	else:
@@ -306,10 +305,12 @@ func _process(_delta: float) -> void:
 
 
 ## A gauge turns red when it is low enough to be doing harm.
-func _set_gauge(id: String, value: float) -> void:
+func _set_gauge(id: String, value: float, shown: bool) -> void:
 	var b: ProgressBar = _gauges[id]
+	b.visible = shown
+	(_gauge_names[id] as Label).visible = shown
 	b.value = value
-	b.modulate = Color(1.0, 0.45, 0.4) if value < 0.3 and id != "room" else Color.WHITE
+	b.modulate = Color(1.0, 0.45, 0.4) if value < 0.3 and not id in ["room", "swarm", "settled"] else Color.WHITE
 
 
 ## Says on the torch's button which torch it is: taking it up again changes it.
@@ -345,7 +346,7 @@ func say(text: String) -> void:
 
 
 func is_sheet_open() -> bool:
-	return shop.visible or dex.visible or page.visible
+	return shop.visible or dex.visible or page.visible or homes.visible
 
 
 func _show_tickets() -> void:

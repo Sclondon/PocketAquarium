@@ -42,7 +42,7 @@ void fragment() {
 		if (!FRONT_FACING) {
 			n = -n;
 		}
-		float net = step(0.5, caustic(v_world.xz * 0.8 + v_world.y * 0.2, TIME * 0.6)) * smoothstep(0.2, 0.5, n.y);
+		float net = step(0.5, caustic(v_world.xz * 0.8 + v_world.y * 0.2, TIME * 0.6)) * smoothstep(0.2, 0.5, n.y) * step(v_world.y, water_top);
 		// (plants are thin: the light comes through them)
 		float lit = sway > 0.0 ? mix(0.55, 1.0, lit_side(n, 0.3)) : lit_side(n, 0.1);
 		vec3 shaded = col * (mix(shadow, key * (1.0 + net * 0.35), lit) * lamp + torch_on(v_world));

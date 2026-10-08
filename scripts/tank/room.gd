@@ -18,9 +18,9 @@ const HALF := 2.3
 const FRONT := 1.15
 const BACK := 1.25
 ## The y of the floor of each slot: where a tank's base stands.
-const SLOTS := [-SLOT_GAP, 0.0, SLOT_GAP]
+const SLOTS := [-2.0 * SLOT_GAP, -SLOT_GAP, 0.0, SLOT_GAP, 2.0 * SLOT_GAP]
 ## The y of the top of the unit, where the covered tank stands.
-const TOP := 2.0 * SLOT_GAP - 0.1
+const TOP := 3.0 * SLOT_GAP - 0.1
 
 const WOOD := Color(0.26, 0.2, 0.2)
 const WALL := Color(0.13, 0.17, 0.26)
@@ -57,10 +57,10 @@ func _ready() -> void:
 	rng.seed = 21
 	var mb := MB.new()
 	var low: float = SLOTS[0] - 0.1 - BOARD
-	var high: float = SLOTS[2] + SLOT_GAP
+	var high: float = SLOTS[SLOTS.size() - 1] + SLOT_GAP
 	var mid_z := (FRONT - BACK) * 0.5
 	# shelves: one under each slot and one over the top
-	for y: float in [SLOTS[0], SLOTS[1], SLOTS[2], high]:
+	for y: float in SLOTS + [high]:
 		Props.box(mb, Vector3(0.0, y - 0.1 - BOARD * 0.5, mid_z), Vector3(HALF * 2.0 + 0.3, BOARD, FRONT + BACK), WOOD, rng)
 	# the sides, the plinth it stands on, and a back of planks
 	for sx: float in [-1.0, 1.0]:
@@ -89,6 +89,7 @@ func _ready() -> void:
 
 	# a window on one side, with the moon behind it, and a picture on the other
 	_window(mb, Vector3(-5.2, 1.3, wall_z + 0.02))
+	_window(mb, Vector3(-5.2, 1.3 + 2.0 * SLOT_GAP, wall_z + 0.02))
 	_picture(mb, Vector3(4.3, 1.5, wall_z + 0.02))
 	var built := MeshInstance3D.new()
 	built.mesh = mb.build()
@@ -115,13 +116,13 @@ func dress(widths: Array[float]) -> void:
 		if widths[i] <= 0.0:
 			# nothing here yet: a few things left on the shelf
 			Props.books(mb, Vector3(-HALF + 0.45, y, -0.5), rng)
-			if i == 0:
+			if i % 2 == 0:
 				Props.box(mb, Vector3(HALF - 0.6, y + 0.25, -0.4), Vector3(0.8, 0.5, 0.6), Color(0.6, 0.48, 0.32), rng, 0.01)
 			else:
 				Props.pot_plant(mb, Vector3(HALF - 0.5, y, -0.3), rng)
 			continue
 		if spare > 0.5:
-			if i == 1:
+			if i == 2:
 				Props.tin(mb, Vector3(-HALF + spare * 0.45, y, 0.35), rng)
 			Props.pot_plant(mb, Vector3(HALF - spare * 0.5, y, 0.1), rng)
 		if spare > 0.9:

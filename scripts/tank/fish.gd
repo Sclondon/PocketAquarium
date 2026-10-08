@@ -79,6 +79,12 @@ var _busy := 0.0
 var _company := 0.0
 ## How fast it is going about what it is doing, beside its ordinary speed.
 var _pace := 1.0
+## How it gets about: "swim", or on foot: "walk", "hop", "climb" (the ground and the back wall)
+## or "glide" (a snail: the same, slowly). For one on foot: seconds left of standing still, and
+## how far through a hop it is (0 to 1).
+var _gait := "swim"
+var _rest := 0.0
+var _hop := 0.0
 var _seen_by_torch := false
 
 
@@ -109,13 +115,21 @@ func setup(in_tank, data: Dictionary) -> void:
 	_bend("wag_phase", _wag)
 	var look: Dictionary = info().look
 	_plan = look.get("plan", "fish")
+	_gait = Species.habit(species, "gait", "swim")
 	_bend("swim", 2 if _plan == "jelly" else (1 if look.get("flukes", false) else 0))
+	if Species.habit(species, "still"):
+		_bend("swim", 4)
+	if _gait != "swim":
+		# (one on foot sways as it walks, and one that hops or glides holds itself still)
+		_bend("swim", 3 if _gait in ["walk", "climb"] else 4)
 	_bend("wag_amp", Species.habit(species, "wag", 0.07 if _plan == "squid" else 0.12))
 	_mat.set_shader_parameter("spots", look.get("spots", 0.0))
 	_mat.set_shader_parameter("spot_color", look.get("spot", Color(0.05, 0.08, 0.1)))
 	material_override = _mat
-	var box: AABB = tank.swim_box(minf(reach(), 0.3))
+	var box: AABB = tank.swim_box(minf(reach(), 0.3)) if _gait == "swim" else tank.walk_box(_gait)
 	position = box.position + box.size * Vector3(_rng.randf(), _rng.randf(), _rng.randf())
+	if _gait != "swim":
+		position.y = tank.floor_y(position.x, position.z) + _stand()
 	_heading = Vector3(1.0 if _rng.randf() < 0.5 else -1.0, 0.0, 0.0)
 	_apply_pose()
 
@@ -145,7 +159,8 @@ func reach() -> float:
 
 ## How bright the lamp of the tank it is in is, and the tones of that tank's light (tank.gd
 ## tells it: see `Tank.LOOKS`).
-func set_light(amount: float, look: Dictionary, depth: float) -> void:
+func set_light(amount: float, look: Dictionary, depth: float, water_top: float) -> void:
+	_mat.set_shader_parameter("water_top", water_top)
 	_mat.set_shader_parameter("lamp", amount)
 	_mat.set_shader_parameter("key", look.key)
 	_mat.set_shader_parameter("shadow", look.shadow)
@@ -201,13 +216,18 @@ func tick(delta: float, lived: float) -> void:
 	live(lived)
 	if dead:
 		return
-	_swim(delta)
+	if _gait == "swim":
+		_swim(delta)
+	else:
+		_roam(delta)
 
 
 ## Its hunger, growth and health over `delta` seconds (which may be many, when catching up
 ## on time away).
 func live(delta: float) -> void:
-	var died := life.live(delta, tank.o2, tank.waste)
+	# (an animal of dry land takes no harm from the water it does not live in)
+	var in_water: bool = tank.is_wet() and Species.habit(species, "gait", "swim") in ["swim", "glide", "amphibious"]
+	var died := life.live(delta, tank.o2 if in_water else 1.0, tank.waste if in_water else 0.0, tank.discomfort(species))
 	_mat.set_shader_parameter("pale", 1.0 if dead else clampf(1.0 - health * 1.6, 0.0, 0.8))
 	if died:
 		tank.fish_died(self)
@@ -484,7 +504,7 @@ func _steer(delta: float, box: AABB) -> void:
 
 ## The place in the tank it likes to be.
 func _spot() -> Vector3:
-	var box: AABB = tank.swim_box(minf(reach(), 0.3))
+	var box: AABB = tank.swim_box(minf(reach(), 0.3)) if _gait == "swim" else tank.walk_box(_gait)
 	return _at_its_level(box.position + box.size * buddy.spot, box)
 
 
@@ -505,6 +525,8 @@ func _at_its_level(at: Vector3, box: AABB) -> Vector3:
 func mood() -> String:
 	if dead:
 		return "dead"
+	if tank.complaint(species) != "":
+		return "unhappy: it is %s here" % tank.complaint(species)
 	if health < 0.6:
 		return "poorly"
 	var who: String = _with.fish_name if is_instance_valid(_with) else "someone"
@@ -556,6 +578,12 @@ func company() -> String:
 
 
 func _float_up(delta: float) -> void:
+	if _gait != "swim":
+		# (one on foot does not float: it lies where it fell, on its back)
+		_roll = minf(_roll + delta * 1.2, PI)
+		position.y = tank.floor_y(position.x, position.z) + _stand()
+		_apply_pose()
+		return
 	_roll = minf(_roll + delta * 1.2, PI)
 	position.y = minf(position.y + delta * 0.12, tank.water_level - _size() * 0.3)
 	_apply_pose()
@@ -572,3 +600,86 @@ func _apply_pose() -> void:
 		basis = (Basis(Vector3.UP, atan2(_facing.x, _facing.y)) * Basis(Vector3.RIGHT, 0.25 - _roll)).scaled(Vector3.ONE * _size())
 		return
 	basis = (Basis.looking_at(flat, Vector3.UP) * Basis(Vector3.FORWARD, _roll)).scaled(Vector3.ONE * _size())
+
+
+# ------------------------------------------------------------------ on foot
+
+## Moves an animal that does not swim: one that walks, hops, climbs or glides. It makes up its
+## mind the same way a swimmer does (`_decide`), but goes there over the ground (or, if it
+## climbs, up the back wall), and in fits and starts: a few steps, then a wait.
+func _roam(delta: float) -> void:
+	var box: AABB = tank.walk_box(_gait)
+	_busy = maxf(_busy - delta, 0.0)
+	var feeding := false
+	if hunger > PECKISH and doing != "fleeing":
+		var food: Dictionary = tank.nearest_food(position, buddy.stage() == "new")
+		if not food.is_empty() and food.landed:
+			feeding = true
+			doing = "feeding"
+			_pace = 1.6
+			_rest = 0.0
+			_target = food.node.position
+			if position.distance_to(_target) < reach() + 0.06:
+				tank.eat(food)
+				life.eat()
+				buddy.fed()
+	if not feeding:
+		_think -= delta
+		if _think <= 0.0:
+			_think = _rng.randf_range(0.3, 0.6)
+			_decide()
+		_steer(delta, box)
+	# where it is going, brought down to the ground, or (for a climber) put on the back wall
+	var goal := _target.clamp(box.position, box.end)
+	var wall: bool = _gait in ["climb", "glide"] and goal.y > tank.floor_y(goal.x, goal.z) + 0.3
+	if wall:
+		goal.z = -tank.depth * 0.5 + 0.05
+	else:
+		goal.y = tank.floor_y(goal.x, goal.z) + _stand()
+	var to := goal - position
+	var hurried := doing in ["fleeing", "chasing", "hiding", "feeding", "following"]
+	_rest = 0.0 if hurried else maxf(_rest - delta, 0.0)
+	var moving := _rest <= 0.0 and to.length() > 0.04
+	var v := _burst
+	_burst = _burst.lerp(Vector3.ZERO, 1.0 - exp(-3.0 * delta))
+	if moving:
+		v += to.normalized() * 0.2 * float(info().speed) * _pace * lerpf(0.4, 1.0, health)
+		# (it stops now and then, as they do, for no reason it gives)
+		if not hurried and _hop <= 0.0 and _rng.randf() < delta * 0.45:
+			_rest = _rng.randf_range(0.8, 5.0)
+	if _gait == "hop":
+		# a hop is all or nothing: once off the ground it finishes, and then it sits
+		if _hop > 0.0 or moving:
+			_hop += delta / 0.38
+			if _hop >= 1.0:
+				_hop = 0.0
+				if not hurried:
+					_rest = _rng.randf_range(0.4, 3.0)
+		else:
+			v = _burst
+	position += v * delta
+	position = position.clamp(box.position, box.end)
+	if wall and absf(position.z - goal.z) < 0.12:
+		position.z = goal.z
+	else:
+		position.y = tank.floor_y(position.x, position.z) + _stand() + sin(PI * _hop) * _size() * 0.9
+		wall = false
+	if v.length() > 0.02:
+		var dir := (Vector3(v.x, v.y, 0.0) if wall else Vector3(v.x, 0.0, v.z)).normalized()
+		var turned := _heading.lerp(dir, 1.0 - exp(-5.0 * delta))
+		_heading = turned.normalized() if turned.length() > 0.05 else dir
+	_wag += delta * (2.0 + v.length() * 40.0)
+	_bend("wag_phase", _wag)
+	if wall:
+		# flat against the wall, belly to it, head the way it is going
+		basis = Basis.looking_at(_heading if _heading.length() > 0.1 else Vector3.UP, Vector3.BACK).scaled(Vector3.ONE * _size())
+	else:
+		var across := Vector2(_heading.x, _heading.z)
+		if across.length() > 0.2:
+			_facing = across.normalized()
+		basis = Basis.looking_at(Vector3(_facing.x, 0.0, _facing.y), Vector3.UP).scaled(Vector3.ONE * _size())
+
+
+## How far its middle is above the ground it stands on (metres).
+func _stand() -> float:
+	return _size() * float(Species.habit(species, "stand", 0.25))

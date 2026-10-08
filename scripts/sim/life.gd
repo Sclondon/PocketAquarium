@@ -26,6 +26,9 @@ const STARVE_TIME := 3.0 * DAY
 const CHOKE_TIME := 4.0 * 3600.0
 const FOUL_TIME := 2.0 * DAY
 const HEAL_TIME := DAY
+## How long a home that is quite wrong for it (too dry, too cold, the wrong salt) takes to kill
+## it: far longer than foul water, so there are days of warning.
+const WRONG_HOME_TIME := 8.0 * DAY
 
 ## 0 newly hatched to 1 full-grown
 var growth := 1.0
@@ -37,8 +40,9 @@ var breed_wait := 2.0 * DAY
 
 
 ## Its hunger, growth and health over `dt` seconds (which may be many) in water with this much
-## oxygen and waste. Returns true if it died in that time.
-func live(dt: float, o2: float, waste: float) -> bool:
+## oxygen and waste, in a home that is this far (0 to 1) from what it wants. Returns true if it
+## died in that time.
+func live(dt: float, o2: float, waste: float, discomfort := 0.0) -> bool:
 	if dead:
 		return false
 	hunger = minf(hunger + dt / HUNGER_TIME, 1.0)
@@ -52,6 +56,8 @@ func live(dt: float, o2: float, waste: float) -> bool:
 		harm += dt / CHOKE_TIME * maxf(1.0 - o2 / LOW_OXYGEN, 0.1)
 	if waste > FOUL:
 		harm += dt / FOUL_TIME * maxf((waste - FOUL) / (1.0 - FOUL), 0.1)
+	if discomfort > 0.2:
+		harm += dt / WRONG_HOME_TIME * discomfort
 	if harm > 0.0:
 		health -= harm
 	else:

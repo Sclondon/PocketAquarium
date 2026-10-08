@@ -10,7 +10,7 @@ cd "$(dirname "$0")/.."
 GODOT="${GODOT:-C:/Program Files (x86)/Steam/steamapps/common/Godot Engine/godot.windows.opt.tools.64.exe}"
 failed=0
 out="$(mktemp)"
-"$GODOT" --headless --path . -- --no-save --smoke --seed=7 2>&1 | grep -E "^smoke|SCRIPT ERROR" > "$out"
+timeout 400 "$GODOT" --headless --path . -- --no-save --smoke --seed=7 2>&1 | grep -E "^smoke|SCRIPT ERROR" > "$out"
 if [ "${1:-}" = "--accept" ]; then cp "$out" tests/smoke_seed7.txt; echo "smoke: accepted as the new baseline"; exit 0; fi
 if diff -u tests/smoke_seed7.txt "$out"; then echo "PASS smoke"; else echo "FAIL smoke"; failed=1; fi
 if grep -q "old save" "$out" && ! grep "old save" "$out" | grep -vqE ": ([0-9]+) of \1 fish"; then echo "PASS saves"; else echo "FAIL saves"; failed=1; fi

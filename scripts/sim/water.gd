@@ -13,6 +13,12 @@ const DAY := 86400.0
 var o2 := 0.9
 var waste := 0.05
 var algae := 0.0
+## How alive the filter is: the bacteria in it that turn the fishes' waste into something they
+## can live with. 0 in water nothing has lived in, 1 once it has been kept a few days.
+var colony := 1.0
+
+## Days it takes the colony to grow in.
+const SETTLES := 4.0
 
 
 ## Moves the water on by `dt` seconds, which may be many: each number heads for a resting
@@ -26,6 +32,10 @@ func step(dt: float, crowd: float, bodies: int, plants: int, snails: int, lit: b
 	# a day's waste: 0.03 for each fish's worth of room, more for a body left in; a day's
 	# cleaning takes this share of what is there
 	var making := (crowd * 0.03 + bodies * 0.1) / DAY
-	var cleaning := (0.05 + (0.4 if filter else 0.0) + plants * 0.05 * light) / DAY
+	# (the colony grows as long as there is waste for it to live on, and until it has grown the
+	# water cleans itself only a third as well)
+	if waste > 0.01:
+		colony = minf(colony + dt / (SETTLES * DAY), 1.0)
+	var cleaning := (0.05 + (0.4 if filter else 0.0) + plants * 0.05 * light) * lerpf(0.35, 1.0, colony) / DAY
 	waste = clampf(lerpf(making / cleaning, waste, exp(-cleaning * dt)), 0.0, 1.0)
 	algae = clampf(algae + dt / DAY * ((0.1 + 0.2 * waste) * light - snails * 0.06), 0.0, 1.0)

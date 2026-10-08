@@ -11,6 +11,7 @@ extends Node
 const Tank := preload("res://scripts/tank/tank.gd")
 const Room := preload("res://scripts/tank/room.gd")
 const Species := preload("res://scripts/tank/species.gd")
+const Kinds := preload("res://scripts/tank/kinds.gd")
 const Hud := preload("res://scripts/ui/hud.gd")
 const Autotest := preload("res://scripts/tools/autotest.gd")
 
@@ -27,13 +28,13 @@ const ZOOM_OUT := 1.7
 const CLOSEST := 0.3
 const FOLLOW_FROM := 1.0
 ## The slot every shelf starts with a tank in: the middle one.
-const FIRST_SLOT := 1
+const FIRST_SLOT := 2
 ## Past the top shelf is the top of the unit, where the covered tank stands: it is looked at
 ## like a slot, though no tank can be put there.
-const COVERED := 3
+const COVERED := 5
 
 ## The tank in each slot of the shelf, bottom to top (null where there is none yet).
-var tanks: Array[Tank] = [null, null, null]
+var tanks: Array[Tank] = [null, null, null, null, null]
 ## The slot being looked at, and the tank in it (null for an empty slot).
 var slot := FIRST_SLOT
 var tank: Tank:
@@ -142,10 +143,11 @@ func _ready() -> void:
 	_place_camera(1.0)
 
 	for arg in OS.get_cmdline_user_args():
-		if arg.begins_with("--shots=") or arg == "--smoke":
+		if arg.begins_with("--shots=") or arg.begins_with("--homes=") or arg == "--smoke":
 			var test := Autotest.new()
 			test.main = self
 			test.folder = arg.get_slice("=", 1) if "=" in arg else ""
+			test.homes = arg.begins_with("--homes=")
 			add_child(test)
 
 
@@ -240,13 +242,13 @@ func look_at_slot(to: int) -> void:
 func _buy_tank(kind: String) -> void:
 	if tank != null:
 		return
-	if not Tickets.spend(Tank.PRICES[kind], "tank:" + kind):
+	if not Tickets.spend(int(Kinds.of(kind).price), "tank:" + kind):
 		Sfx.play("no")
 		return
 	Sfx.play("buy")
 	add_tank(slot, {"kind": kind})
 	look_at_slot(slot)
-	hud.say("%s. %s" % [Tank.KIND_NAMES[kind], "It wants filling: see the shop." if kind == "sea" else "Two guppies came with it."])
+	hud.say("%s. %s" % [Kinds.of(kind).name, "Two guppies came with it." if kind == "fresh" else "See the shop for who can live in it."])
 	save()
 
 
@@ -408,7 +410,9 @@ func _tap(at: Vector2) -> void:
 		return
 	if tool == "feed":
 		var mid := (through[0] + through[1]) * 0.5
-		if not tank.anyone_hungry():
+		if tank.swarm != null:
+			hud.say(tank.swarm.mood() if tank.swarm.food < 1.0 else "That is plenty. More will foul the water.")
+		elif not tank.anyone_hungry():
 			hud.say("Nobody is hungry. Food left on the bottom rots.")
 		tank.drop_food(mid.x, mid.z)
 		Sfx.play("plop", randf_range(0.9, 1.3))

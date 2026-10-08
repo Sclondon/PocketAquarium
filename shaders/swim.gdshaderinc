@@ -3,10 +3,17 @@
 uniform float wag_phase = 0.0;
 uniform float wag_amp = 0.12;
 // 0 wags its tail from side to side, 1 beats it up and down (whales), 2 pulses its bell and
-// trails its tentacles (jellyfish).
+// trails its tentacles (jellyfish), 3 sways from side to side as it walks, 4 holds still.
 uniform int swim = 0;
 
 vec3 swim_bend(vec3 v) {
+	if (swim == 4) {
+		return v;
+	}
+	if (swim == 3) {
+		v.x += sin(wag_phase - v.z * 3.0) * wag_amp * 0.35;
+		return v;
+	}
 	if (swim == 2) {
 		float under = max(-v.y, 0.0);
 		float beat = sin(wag_phase);

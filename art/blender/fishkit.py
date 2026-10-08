@@ -72,6 +72,10 @@ class Kit:
         except ValueError:
             return None
         f.smooth = True
+        # (a colour may carry a fifth number: how much that face glows)
+        if len(colour) == 5:
+            glow = colour[4]
+            colour = colour[:4]
         for loop, uv in zip(f.loops, uvs):
             loop[self.col] = colour
             # (glTF counts a UV's second number from the top, so the exporter turns it over)
@@ -147,6 +151,71 @@ class Kit:
         """How far out the flank is at z, on the side sx (-1 or 1)."""
         hw, hh, yc = self.ring(z)
         return sx * hw * inset
+
+
+    def tube(self, path, radii, colour_at, around=8, part=0.5, line=1.0, flat=1.0):
+        """A round limb through the points of `path`, with a radius at each: a leg, a feeler, a
+        tail, a body that bends. `colour_at(t, k)` gives a face's colour from how far along it
+        is (0 to 1) and which way round (0 to `around`). `flat` squashes it top to bottom. Both
+        ends are closed."""
+        pts = [Vector(p) for p in path]
+        rings = []
+        ref = Vector((0.0, 1.0, 0.0))
+        for k, p in enumerate(pts):
+            along = (pts[min(k + 1, len(pts) - 1)] - pts[max(k - 1, 0)]).normalized()
+            up = ref - along * ref.dot(along)
+            if up.length < 0.05:
+                up = Vector((1.0, 0.0, 0.0)) - along * along.x
+            up.normalize()
+            ref = up
+            side = along.cross(up).normalized()
+            ring = []
+            for i in range(around):
+                a = 2 * math.pi * i / around
+                ring.append(self.vert(p + (side * math.cos(a) + up * math.sin(a) * flat) * radii[k]))
+            rings.append(ring)
+        n = len(pts) - 1
+        for k in range(n):
+            mid = (pts[k] + pts[k + 1]) * 0.5
+            for i in range(around):
+                j = (i + 1) % around
+                quad = [rings[k][i], rings[k][j], rings[k + 1][j], rings[k + 1][i]]
+                out = (rings[k][i].co + rings[k][j].co) * 0.5 - pts[k]
+                uvs = [(k / n, part)] * 2 + [((k + 1) / n, part)] * 2
+                self.face(quad, out, colour_at((k + 0.5) / n, i), uvs, line)
+        for end, ring, t in ((pts[0] + (pts[0] - pts[1]).normalized() * radii[0] * 0.6, rings[0], 0.0),
+                             (pts[-1] + (pts[-1] - pts[-2]).normalized() * radii[-1] * 0.6, rings[-1], 1.0)):
+            cap = self.vert(end)
+            centre = pts[0] if t == 0.0 else pts[-1]
+            for i in range(around):
+                self.face([cap, ring[i], ring[(i + 1) % around]], end - centre, colour_at(t, i), [(t, part)] * 3, line)
+
+    def blob(self, centre, radii, colour_at, around=12, rows=8, part=0.5, line=1.0):
+        """A rounded lump: a ball stretched to `radii` (x, y, z) about `centre`. `colour_at(t,
+        up)` gives a face's colour from how far along z it is (0 front to 1 back) and how high
+        (1 top to -1 bottom)."""
+        c = Vector(centre)
+        rings = []
+        for r in range(1, rows):
+            b = math.pi * r / rows
+            ring = []
+            for i in range(around):
+                a = 2 * math.pi * i / around
+                ring.append(self.vert(c + Vector((math.sin(a) * math.sin(b) * radii[0], math.cos(a) * math.sin(b) * radii[1],
+                                                  -math.cos(b) * radii[2]))))
+            rings.append(ring)
+        front = self.vert(c + Vector((0, 0, -radii[2])))
+        back = self.vert(c + Vector((0, 0, radii[2])))
+        for i in range(around):
+            j = (i + 1) % around
+            up = math.cos(2 * math.pi * (i + 0.5) / around)
+            out = Vector((math.sin(2 * math.pi * (i + 0.5) / around), up, 0.0))
+            self.face([front, rings[0][i], rings[0][j]], (0, 0, -1), colour_at(0.0, up), [(0.0, part)] * 3, line)
+            self.face([back, rings[-1][i], rings[-1][j]], (0, 0, 1), colour_at(1.0, up), [(1.0, part)] * 3, line)
+            for r in range(len(rings) - 1):
+                t = (r + 1.5) / rows
+                quad = [rings[r][i], rings[r][j], rings[r + 1][j], rings[r + 1][i]]
+                self.face(quad, out, colour_at(t, up), [(t, part)] * 4, line)
 
     def fin(self, root, rim, colour_at, rows=6, thick=0.03, wave=0.0, line=0.6):
         """A fin: a sheet from the points of `root` (on the body) out to the matching points of

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Builds every animal's model: runs each script in art/blender/ (but fishkit.py, which they
+# Builds every animal's model: runs each script in art/blender/ (but fishkit.py and shapes.py, which they
 # share) in Blender, which writes NAME.blend, NAME.glb and NAME.png (the turnaround sheet to
 # review) into art/generated/. Then puts the model the game is to use in models/: the one
 # from art/hand/ if somebody has reworked it by hand, and the generated one if not.
@@ -11,6 +11,7 @@ mkdir -p art/generated models
 for script in art/blender/*.py; do
 	name="$(basename "$script" .py)"
 	[ "$name" = fishkit ] && continue
+	[ "$name" = shapes ] && continue
 	if [ $# -gt 0 ] && [[ ! " $* " =~ " $name " ]]; then continue; fi
 	"$BLENDER" -b --python "$script" -- "$(pwd)/art/generated" 2>&1 | grep -E "^MODEL|fishkit:|Error|Traceback|^  File|line [0-9]+" || true
 	[ -f "art/generated/$name.glb" ] || { echo "build_models: $name did not build"; exit 1; }

@@ -58,7 +58,7 @@ void fragment() {
 	col = mix(col, vec3(dot(col, vec3(0.3, 0.5, 0.2))) * 0.8 + 0.05, pale);
 	float glow = modelled ? UV2.y : (COLOR.a < 0.995 ? 1.0 - COLOR.a : 0.0);
 	// the net of light, in flat patches, on what faces the lamp
-	float net = step(0.5, caustic(v_world.xz * 0.8 + v_world.y * 0.2, TIME * 0.6)) * smoothstep(0.2, 0.5, n.y);
+	float net = step(0.5, caustic(v_world.xz * 0.8 + v_world.y * 0.2, TIME * 0.6)) * smoothstep(0.2, 0.5, n.y) * step(v_world.y, water_top);
 	// (the darkest animal still has a shadow side that is a colour, not black)
 	vec3 shaded = (col + 0.035) * (mix(shadow, key * (1.0 + net * 0.35), lit) * lamp + torch_on(v_world));
 	if (UV.y > 2.5) {

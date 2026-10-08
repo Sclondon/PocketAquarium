@@ -5,16 +5,19 @@ extends Node
 ## Both quit when they are done. Use --no-save so they leave the real tank alone.
 
 const Species := preload("res://scripts/tank/species.gd")
+const Kinds := preload("res://scripts/tank/kinds.gd")
 
 var main: Node
 var folder := ""
+## The tour of every kind of home, in place of the usual one.
+var homes := false
 
 
 func _ready() -> void:
 	if folder == "":
 		_smoke.call_deferred()
 	else:
-		_shots.call_deferred()
+		(_homes if homes else _shots).call_deferred()
 
 
 ## Keeps three tanks for weeks of tank time and prints what became of each: a beginner's and a
@@ -57,7 +60,7 @@ func _smoke() -> void:
 		day += 1
 	print("smoke: left alone, the last of the fish died on day %d; waste %.2f, algae %.2f" % [day, tank.waste, tank.algae])
 
-	var sea = main.add_tank(2, {"kind": "sea"})
+	var sea = main.add_tank(3, {"kind": "sea"})
 	sea.grow()
 	sea.grow()
 	for id in ["pump", "filter"]:
@@ -70,6 +73,38 @@ func _smoke() -> void:
 	_keep(sea, 60)
 	main.save()
 	print("smoke: saved %d tanks, dex %d" % [Save.data.tanks.filter(func(t: Variant) -> bool: return t != null).size(), main.dex.size()])
+
+	# the other kinds of home. A brine kit, fed a pinch every other day and topped up weekly
+	var kit = main.add_tank(0, {"kind": "brine"})
+	var most := 0.0
+	for d in 40:
+		if d % 2 == 0:
+			kit.drop_food(0.0, 0.0)
+		if d % 7 == 6:
+			kit.change_water()
+		kit.elapse(86400.0)
+		most = maxf(most, kit.swarm.count())
+	print("smoke: a brine kit after 40 days: %d sea monkeys (most %d), %d eggs, salt %.2f" % [kit.swarm.count(), most, kit.swarm.eggs, kit.salt])
+	kit.load_state({"kind": "brine"})
+	kit.elapse(20.0 * 86400.0)
+	print("smoke: a brine kit never fed, after 20 days: %d sea monkeys" % kit.swarm.count())
+	# a vivarium, misted every day, and one never misted; and a desert with its lamp left off
+	for care: String in ["misted daily", "never misted"]:
+		var viv = main.tanks[1] if main.tanks[1] != null else main.add_tank(1, {})
+		viv.load_state({"kind": "vivarium"})
+		for id: String in ["dart_frog", "horned_frog", "crested_gecko"]:
+			viv.add_fish(id)
+		var first_death := 0
+		for n in 30:
+			viv.drop_food(0.0, 0.0)
+			for i in 600:
+				viv.step(0.1)
+			if care == "misted daily":
+				viv.change_water()
+			viv.elapse(86400.0 - 60.0)
+			if first_death == 0 and _living(viv) < 3:
+				first_death = n + 1
+		print("smoke: a vivarium %s for 30 days: %d of 3 living, damp %.2f, first death on day %d" % [care, _living(viv), viv.humidity, first_death])
 
 	# saves from the first game, in both the shapes it wrote, come up to date and load with
 	# every fish they had
@@ -208,7 +243,7 @@ func _shots() -> void:
 	await _shot("6_dex")
 	main.hud.dex.close()
 	# the shelf above: a magic salt water tank with one of everything, then the empty one below
-	var sea = main.add_tank(2, {"kind": "sea"})
+	var sea = main.add_tank(3, {"kind": "sea"})
 	sea.grow()
 	sea.grow()
 	sea.fit("pump")
@@ -219,7 +254,7 @@ func _shots() -> void:
 		sea.add_fish(id)
 	for i in 300:
 		sea.step(0.1)
-	main.look_at_slot(2)
+	main.look_at_slot(3)
 	await _settle(2.0)
 	await _shot("6a_sea_tank")
 	for i in sea.fish.size():
@@ -227,11 +262,11 @@ func _shots() -> void:
 		await _settle(1.5)
 		await _shot("6b_sea_%s" % sea.fish[i].species)
 	main.call("_select", null)
-	main.look_at_slot(0)
+	main.look_at_slot(1)
 	await _settle(1.5)
 	await _shot("6c_empty_shelf")
 	# the top of the unit: the covered tank, touched in the light, and then with every lamp out
-	main.look_at_slot(3)
+	main.look_at_slot(5)
 	await _settle(2.0)
 	main.call("_touch_cover")
 	await _settle(0.5)
@@ -245,7 +280,7 @@ func _shots() -> void:
 	tank.set_lamp(true)
 	sea.set_lamp(true)
 	await _settle(1.0)
-	main.look_at_slot(1)
+	main.look_at_slot(2)
 	main.call("_select", tank.fish[4])
 	await _settle(1.5)
 	await _shot("6d_fresh_close")
@@ -292,3 +327,29 @@ func _shot(title: String) -> void:
 	await RenderingServer.frame_post_draw
 	get_viewport().get_texture().get_image().save_png("%s/%s.png" % [folder, title])
 	print("shot ", title)
+
+
+## A picture of every kind of home, each stocked with the animals that are sold for it.
+func _homes() -> void:
+	DirAccess.make_dir_recursive_absolute(folder)
+	await _settle(0.5)
+	for kind: String in Kinds.ORDER:
+		if main.tanks[4] != null:
+			main.tanks[4].queue_free()
+			main.tanks[4] = null
+		var t = main.add_tank(4, {"kind": kind})
+		t.grow()
+		for id: String in Species.ORDER:
+			if Species.LIST[id].has("home") and Species.lives_in(id, kind) and int(Species.LIST[id].price) > 0:
+				for n in (3 if Species.shoals(id) else 1):
+					var f = t.add_fish(id)
+					f.buddy.bond = 0.5
+		main.look_at_slot(4)
+		await _settle(5.0)
+		await _shot("home_%s" % kind)
+		if not t.fish.is_empty():
+			main.call("_select", t.fish[t.fish.size() - 1])
+			await _settle(2.5)
+			await _shot("home_%s_close" % kind)
+			main.call("_select", null)
+	get_tree().quit()

@@ -10,6 +10,8 @@ uniform vec3 key : source_color = vec3(1.0, 0.9, 0.72);
 uniform vec3 shadow : source_color = vec3(0.24, 0.18, 0.36);
 uniform vec3 haze : source_color = vec3(0.12, 0.07, 0.05);
 uniform float tank_depth = 1.2;
+// How high the water comes, in the world: the net of light it throws is only on what is under it.
+uniform float water_top = 1000.0;
 
 // The keeper's torch: where its beam goes into the tank (in the world; it shines straight back
 // from the glass) and its colour, which is black while it is off.

@@ -50,7 +50,7 @@ func refresh() -> void:
 		body.add_child(UiKit.label("Room in the tank: %.1f of %d" % [tank.capacity() - tank.crowd(), int(tank.capacity())], 18, UiKit.TEAL))
 		for id: String in Species.ORDER:
 			var sp: Dictionary = Species.LIST[id]
-			if int(sp.price) > 0 and Species.water(id) == tank.kind:
+			if int(sp.price) > 0 and Species.lives_in(id, tank.kind):
 				var why := "" if tank.has_room_for(id) else "FULL"
 				_row(FishIcon.new(id), sp.name, sp.blurb, sp.price, why, _buy.bind("fish:" + id, sp.price))
 		return
@@ -62,6 +62,9 @@ func refresh() -> void:
 		var blurb: String = good[3]
 		var price: int = good[4]
 		var why := ""
+		# (pumps, filters and the things that live under water are no use on dry land)
+		if not tank.is_wet() and id in ["snail", "shrimp", "pump", "filter"]:
+			continue
 		match id:
 			"plant":
 				why = "" if tank.plants < Tank.MAX_PLANTS else "MAX"
@@ -75,12 +78,12 @@ func refresh() -> void:
 			"pump", "filter":
 				why = "OWNED" if tank.gear.has(id) else ""
 			"bigger":
-				if tank.size_id >= Tank.SIZES.size() - 1:
-					title = Tank.SIZES[tank.size_id].name
+				if tank.size_id >= tank.sizes().size() - 1:
+					title = tank.sizes()[tank.size_id].name
 					why = "OWNED"
 				else:
-					title = Tank.SIZES[tank.size_id + 1].name
-					price = Tank.SIZES[tank.size_id + 1].price
+					title = tank.sizes()[tank.size_id + 1].name
+					price = tank.sizes()[tank.size_id + 1].price
 			_:
 				why = "OWNED" if tank.decor.has(id) else ""
 		_row(null, title, blurb, price, why, _buy.bind(id, price))

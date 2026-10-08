@@ -29,6 +29,6 @@ void fragment() {
 	float round_stone = step(length(fract(q) - centre), 0.24);
 	float there = step(1.0 - 0.05 - 0.3 * coarse, hash21(cell));
 	col = mix(col, sand.rgb * mix(0.5, 1.25, step(0.5, hash21(cell + 7.0))), there * round_stone);
-	float net = step(0.45, caustic(p * 0.8 + v_world.y * 0.2, TIME * 0.6));
+	float net = step(0.45, caustic(p * 0.8 + v_world.y * 0.2, TIME * 0.6)) * step(v_world.y, water_top);
 	ALBEDO = into_haze(col * (mix(shadow * 1.6, key, 0.62 + net * 0.38) * lamp + torch_on(v_world)), v_world.z);
 }

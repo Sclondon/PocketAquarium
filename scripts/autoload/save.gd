@@ -4,12 +4,12 @@ extends Node
 ##
 ## The file carries a `version`. The first game that was published wrote none, in two shapes
 ## (one `tank`, or later a `tanks` list of three): a file like that is version 1. Before a
-## version 1 file is touched it is copied, once, to BACKUP, so nothing an update does to it
+## file older than this is touched it is copied, once, to BACKUP, so nothing an update does to it
 ## can lose what was in it. `upgrade` then brings it up to date.
 
 const PATH := "user://aquarium.json"
 const BACKUP := "user://aquarium.v1.json"
-const VERSION := 2
+const VERSION := 3
 
 var data := {}
 var enabled := true
@@ -45,6 +45,11 @@ static func upgrade(old: Dictionary) -> Dictionary:
 		old.erase("tank")
 		# the update changes how the tanks look and nothing about how they are kept, so the
 		# time away is caught up on as it always was
+	if from < 3:
+		# version 2 had three shelves, and now there are five: the three are the middle three
+		var three: Array = old.get("tanks", [])
+		three.resize(3)
+		old["tanks"] = [null, three[0], three[1], three[2], null]
 	old["version"] = VERSION
 	return old
 
