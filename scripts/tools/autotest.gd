@@ -273,6 +273,14 @@ func _shots() -> void:
 	tank.greet()
 	await _settle(3.5)
 	await _shot("2c_saying_hello")
+	# the net, drawn through food lying on the bottom, takes it out
+	for f in tank.fish:
+		f.hunger = 0.0
+	tank.drop_food(0.5, 0.2)
+	await _settle(9.0)
+	var lying: Vector3 = tank.nearest_food(Vector3(0.5, 0.0, 0.2)).node.position
+	var eye: Vector3 = main.camera.position - tank.position
+	print("netted: ", tank.scoop(eye, (lying - eye).normalized()), " of 3, leaving ", tank.get("_foods").size())
 	tank.hold_mirror(Vector3(0.3, 0.6, tank.depth * 0.5))
 	await _settle(4.0)
 	await _shot("2f_at_the_mirror")

@@ -60,6 +60,8 @@ var _card_health: ProgressBar
 var _fish: Node
 var _water_plate: PanelContainer
 var _tank_only: Array[Control] = []
+var _feed_live := false
+var _feed_in_hand := true
 var _up: Button
 var _down: Button
 var _offer: PanelContainer
@@ -238,6 +240,7 @@ func show_slot(in_tank, at: int, slots: int, for_sale := true) -> void:
 	page.close()
 	for c in _tank_only:
 		c.visible = tank != null
+	_name_feed()
 	_water_plate.visible = tank != null
 	_offer.visible = tank == null and for_sale
 	_up.disabled = at >= slots - 1
@@ -353,7 +356,19 @@ func show_torch(red: bool, in_hand: bool) -> void:
 
 ## The feed key says what it gives while it is in hand: picking it again changes it.
 func show_feed(live: bool, in_hand: bool) -> void:
-	(_tools["feed"] as Button).text = ("LIVE" if live else "FLAKE") if in_hand else "FEED"
+	_feed_live = live
+	_feed_in_hand = in_hand
+	_name_feed()
+
+
+func _name_feed() -> void:
+	var key: Button = _tools["feed"]
+	if not _feed_in_hand or tank == null or tank.swarm != null:
+		key.text = "FEED"
+	elif not tank.is_wet():
+		key.text = "CRICKET"
+	else:
+		key.text = "LIVE" if _feed_live else "FLAKE"
 
 
 func pick_tool(tool: String) -> void:

@@ -474,6 +474,8 @@ func _tap(at: Vector2) -> void:
 		var mid := (through[0] + through[1]) * 0.5
 		if tank.swarm != null:
 			hud.say(tank.swarm.mood() if tank.swarm.food < 1.0 else "That is plenty. More will foul the water.")
+		elif not tank.fish.is_empty() and tank.fish.all(func(f: Node) -> bool: return f.dead or Species.habit(f.species, "grazes") or Species.habit(f.species, "pest")):
+			hud.say("Nothing in here eats that. It will lie there and rot: the net takes it out.")
 		elif not tank.anyone_hungry():
 			hud.say("Nobody is hungry. Food left on the bottom rots.")
 		tank.live_food = feed_live
@@ -503,9 +505,14 @@ func _net(at: Vector2) -> int:
 func _pick_tool(picked: String) -> void:
 	if picked == "torch" and tool == "torch":
 		torch_red = not torch_red
-	if picked == "feed" and tool == "feed":
-		feed_live = not feed_live
-		hud.say("Live food: water fleas. The hunters will go a long way for one." if feed_live else "Flake.")
+	if picked == "feed" and tool == "feed" and tank != null:
+		if tank.swarm != null:
+			hud.say("A pinch of the powder is all there is to give them.")
+		elif not tank.is_wet():
+			hud.say("Crickets. Nothing in here will look at anything that does not move.")
+		else:
+			feed_live = not feed_live
+			hud.say("Live food: water fleas. The hunters will go a long way for one." if feed_live else "Flake.")
 	tool = picked
 	if picked == "mirror":
 		hud.say("Hold it to the glass, with the lamp on. You see the back of it: they see a stranger.")
@@ -530,6 +537,8 @@ func _point(at: Vector2) -> void:
 		tank.shine(through[0], torch_red)
 	elif tool == "mirror":
 		tank.hold_mirror(through[0])
+		if not tank.lamp_on:
+			hud.say("Nothing shows in a mirror in the dark. Put the lamp on.")
 	else:
 		tank.point_at(through[0], speed)
 

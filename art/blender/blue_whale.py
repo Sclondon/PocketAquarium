@@ -30,5 +30,5 @@ def skin(t, up, side):
 STATIONS = [(-1.4, 0.1, 0.05, -0.04), (-1.2, 0.24, 0.14, -0.02), (-0.8, 0.28, 0.24, 0.0), (-0.2, 0.26, 0.25, 0.0),
             (0.5, 0.17, 0.18, 0.01), (1.0, 0.07, 0.09, 0.02), (1.25, 0.04, 0.05, 0.02)]
 plain_fish(kit, STATIONS, skin, BLUE, BLUE, srgb(0.1, 0.12, 0.15), eye=0.03, eye_at=-1.0, tail=(0.4, 0.4),
-           dorsal=(0.7, 0.85, 0.07), anal=(0.0, 0.0, 0.0), pectoral=0.3, flukes=True, pelvics=False, rows=61, thick=0.05)
+           dorsal=(0.7, 0.85, 0.07), anal=(0.0, 0.0, 0.0), pectoral=0.3, flukes=True, pelvics=False, around=28, rows=61, thick=0.05)
 kit.finish(sys.argv[sys.argv.index("--") + 1])
