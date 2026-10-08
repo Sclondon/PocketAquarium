@@ -3,7 +3,7 @@ extends RefCounted
 ## numbers (how many eggs, young and grown) and looked after as a whole. It knows nothing of
 ## nodes or pictures: tank.gd draws as many specks as this says there are.
 ##
-## The eggs are dust until they are in salt water; then they hatch within a day or two. The
+## A few hatch in the first hour; the rest of the eggs are dust for a day or two more. The
 ## young grow up in a few days if there is food in the water, and the grown ones lay eggs of
 ## their own, so a colony that is fed goes on for good. It is fed by the pinch: a little clouds
 ## the water and is eaten over a day or so; none and they starve; a lot fouls the water. Salt
@@ -21,7 +21,7 @@ const APPETITE := 0.7
 const LAYS := 0.25
 
 var eggs := 120.0
-var young := 0.0
+var young := 18.0
 var grown := 0.0
 ## How much food is in the water: 0 none, 1 as much as they could want, more than that fouling it.
 var food := 0.0
@@ -79,6 +79,6 @@ func to_data() -> Dictionary:
 
 func load_data(data: Dictionary) -> void:
 	eggs = maxf(data.get("eggs", 120.0), 0.0)
-	young = maxf(data.get("young", 0.0), 0.0)
+	young = maxf(data.get("young", 18.0), 0.0)
 	grown = maxf(data.get("grown", 0.0), 0.0)
 	food = clampf(data.get("food", 0.0), 0.0, 2.0)

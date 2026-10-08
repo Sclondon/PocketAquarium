@@ -106,6 +106,19 @@ func _smoke() -> void:
 				first_death = n + 1
 		print("smoke: a vivarium %s for 30 days: %d of 3 living, damp %.2f, first death on day %d" % [care, _living(viv), viv.humidity, first_death])
 
+	# an animal netted out of one home and into another keeps its name and what it thinks of the keeper
+	var from = main.tanks[2]
+	main.look_at_slot(2)
+	var jar = main.tanks[1]
+	jar.load_state({"kind": "fresh"})
+	var mover = from.fish[0]
+	mover.buddy.bond = 0.6
+	var was_called: String = mover.fish_name
+	var before: int = from.fish.size()
+	main.call("_move", mover, 1)
+	var arrived = jar.fish[jar.fish.size() - 1]
+	print("smoke: moved %s: %d fish left behind (of %d), arrived as %s with bond %.1f" % [was_called, from.fish.size(), before, arrived.fish_name, arrived.buddy.bond])
+
 	# saves from the first game, in both the shapes it wrote, come up to date and load with
 	# every fish they had
 	for was: Dictionary in [

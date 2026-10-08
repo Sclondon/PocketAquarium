@@ -15,7 +15,7 @@ from fishkit import Kit, srgb
 from shapes import one
 
 kit = Kit("bichir")
-OLIVE, DARK, BELLY, FIN = srgb(0.5, 0.52, 0.4), srgb(0.36, 0.38, 0.3), srgb(0.9, 0.88, 0.76), srgb(0.6, 0.6, 0.48)
+OLIVE, DARK, BELLY, FIN = srgb(0.5, 0.52, 0.4), srgb(0.43, 0.45, 0.34), srgb(0.9, 0.88, 0.76), srgb(0.6, 0.6, 0.48)
 
 
 def skin(t, up, side):

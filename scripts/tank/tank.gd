@@ -486,7 +486,7 @@ func rebuild() -> void:
 		for sz: float in [-1.0, 1.0]:
 			Props.box(frame, Vector3(sx * hw, height * 0.5, sz * hd), Vector3(0.035, height, 0.035), trim)
 	Props.box(frame, Vector3(0.0, height + 0.08, -hd * 0.25), Vector3(width * 0.94, 0.09, depth * 0.4), Color(0.13, 0.14, 0.18))
-	if kind == "sea":
+	if kind == "magic":
 		# the magic shows: a line of gold runs round the base, and a gem glows at each corner
 		for sz: float in [-1.0, 1.0]:
 			Props.box(frame, Vector3(0.0, -0.05, sz * (hd + 0.05)), Vector3(width + 0.12, 0.025, 0.012), Props.glow(Color(1.0, 0.8, 0.3), 0.5))
@@ -534,6 +534,33 @@ func rebuild() -> void:
 	# what stands on it
 	Props.rock(mb, _on_floor(-hw * 0.62, hd * 0.35), 0.16, rng)
 	Props.rock(mb, _on_floor(hw * 0.55, -hd * 0.5), 0.2, rng)
+	match kind:
+		"fresh":
+			# a sunk log, and leaves on the bottom
+			Props.box(mb, _on_floor(-hw * 0.1, -hd * 0.45) + Vector3(0.0, 0.1, 0.0), Vector3(width * 0.5, 0.16, 0.18), Color(0.32, 0.2, 0.12), rng, 0.02,
+					Basis(Vector3.UP, 0.25) * Basis(Vector3.BACK, 0.12))
+			for i in 7:
+				var leaf := _on_floor(rng.randf_range(-hw * 0.8, hw * 0.8), rng.randf_range(-hd * 0.6, hd * 0.7)) + Vector3(0.0, 0.012, 0.0)
+				Props.box(mb, leaf, Vector3(0.16, 0.012, 0.09), Color(0.5, 0.26, 0.1).lerp(Color(0.7, 0.5, 0.2), rng.randf()), null, 0.0, Basis(Vector3.UP, rng.randf() * TAU))
+		"stream":
+			# a bed of round stones
+			for i in 9:
+				Props.rock(mb, _on_floor(rng.randf_range(-hw * 0.85, hw * 0.85), rng.randf_range(-hd * 0.7, hd * 0.7)), rng.randf_range(0.07, 0.17), rng)
+		"hard":
+			# a slab of pale stone, and empty shells for whoever wants one
+			Props.box(mb, _on_floor(-hw * 0.4, -hd * 0.4) + Vector3(0.0, 0.14, 0.0), Vector3(0.7, 0.3, 0.35), Color(0.85, 0.82, 0.74), rng, 0.03, Basis(Vector3.BACK, 0.2))
+			for i in 6:
+				Props.blob(mb, _on_floor(rng.randf_range(-hw * 0.3, hw * 0.8), rng.randf_range(-hd * 0.3, hd * 0.7)) + Vector3(0.0, 0.05, 0.0),
+						Vector3(0.08, 0.065, 0.07), rng, Color(0.93, 0.86, 0.72), 6, 3, 0.1)
+		"cold":
+			# slates, stacked into a cave
+			for slate: Array in [[-0.35, 0.06, 0.0], [0.25, 0.06, 0.05], [-0.05, 0.32, 0.0]]:
+				Props.box(mb, _on_floor(hw * 0.2 + slate[0], -hd * 0.35) + Vector3(0.0, slate[1], 0.0),
+						Vector3(0.12 if slate[1] < 0.2 else 0.9, 0.3 if slate[1] < 0.2 else 0.07, 0.5), Color(0.34, 0.36, 0.42), rng, 0.015, Basis(Vector3.UP, slate[2]))
+		"sea":
+			# a pile of rock for things to live in
+			for stone: Array in [[-0.5, 0.0, 0.28], [-0.2, 0.0, 0.34], [-0.38, 0.3, 0.24], [0.1, 0.0, 0.2]]:
+				Props.rock(mb, _on_floor(-hw * 0.2 + stone[0], -hd * 0.4) + Vector3(0.0, stone[1], 0.0), stone[2], rng)
 	# what a home with land in it is dressed with: branches to climb in the wet ones, and in the
 	# dry one a slab under the lamp to bask on and a pile of stones to get under
 	if about().get("humid", false):
@@ -713,6 +740,13 @@ func add_fish(species: String, growth := 1.0) -> Fish:
 	# (it has only just met the keeper)
 	f.buddy.bond = 0.0
 	f.buddy.met = Time.get_unix_time_from_system()
+	changed.emit()
+	return f
+
+
+## Takes in an animal from another home, as it was there (see `Fish.to_data`).
+func adopt(data: Dictionary) -> Fish:
+	var f := _spawn(data)
 	changed.emit()
 	return f
 
@@ -1056,7 +1090,7 @@ func _step_looks(light: float) -> void:
 		mat.set_shader_parameter("haze", look.haze)
 		mat.set_shader_parameter("tank_depth", depth)
 		mat.set_shader_parameter("water_top", water_top)
-	var beam := Color(0.9, 0.12, 0.08) if torch_red else Color(1.0, 0.97, 0.88)
+	var beam := Color(1.0, 0.06, 0.03) if torch_red else Color(1.5, 1.45, 1.3)
 	if torch == null:
 		beam = Color.BLACK
 	var beam_at: Vector3 = position + (torch if torch != null else Vector3.ZERO)
@@ -1091,7 +1125,9 @@ func _draw_swarm() -> void:
 	if swarm == null:
 		return
 	var many := _specks.multimesh
-	var shown := mini(int(swarm.count()), many.instance_count)
+	var alive := mini(int(swarm.count()), many.instance_count)
+	# (what has not hatched yet shows too, as dust lying on the bottom)
+	var shown := mini(alive + mini(int(swarm.eggs), 50), many.instance_count)
 	many.visible_instance_count = shown
 	var box := swim_box(0.08)
 	var grown := int(swarm.grown)
@@ -1102,7 +1138,11 @@ func _draw_swarm() -> void:
 		var at := box.position + box.size * Vector3(0.5 + 0.46 * sin(t + a) * cos(t * 0.37 + a * 1.7),
 				lerpf(0.3, 0.72, _lamp) + 0.28 * sin(t * 0.8 + a * 2.3), 0.5 + 0.46 * cos(t * 0.9 + a * 0.6))
 		var ahead := Vector3(cos(t + a), 0.4 * cos(t * 0.8 + a * 2.3), -sin(t * 0.9 + a * 0.6)).normalized()
-		var size := 0.035 if i < grown else 0.016
+		var size := 0.04 if i < grown else 0.024
+		if i >= alive:
+			size = 0.02
+			at = Vector3(box.position.x + box.size.x * fmod(i * 0.618, 1.0), floor_y(0.0, 0.0) + 0.02 + 0.01 * sin(_clock + i),
+					box.position.z + box.size.z * fmod(i * 0.377, 1.0))
 		many.set_instance_transform(i, Transform3D(Basis.looking_at(ahead, Vector3.UP).scaled(Vector3.ONE * size), at))
 
 

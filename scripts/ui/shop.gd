@@ -47,7 +47,7 @@ func refresh() -> void:
 		var tab: Button = strip.get_child(i)
 		UiKit.hold(tab, SHELVES[i] == _shelf)
 	if _shelf == "FISH":
-		body.add_child(UiKit.label("Room in the tank: %.1f of %d" % [tank.capacity() - tank.crowd(), int(tank.capacity())], 18, UiKit.TEAL))
+		body.add_child(UiKit.label("Room left: %.1f of %d" % [maxf(tank.capacity() - tank.crowd(), 0.0), int(tank.capacity())], 18, UiKit.TEAL))
 		for id: String in Species.ORDER:
 			var sp: Dictionary = Species.LIST[id]
 			if int(sp.price) > 0 and Species.lives_in(id, tank.kind):

@@ -26,7 +26,7 @@ def skin(t, up, side):
 
 
 # it stands on the bottom: belly a little off it, feet at y = 0
-STATIONS = [(-1.05, 0.12, 0.05, 0.22), (-0.95, 0.24, 0.11, 0.23), (-0.75, 0.28, 0.14, 0.24), (-0.55, 0.2, 0.14, 0.24),
+STATIONS = [(-1.05, 0.21, 0.07, 0.22), (-0.95, 0.28, 0.12, 0.23), (-0.75, 0.28, 0.14, 0.24), (-0.55, 0.2, 0.14, 0.24),
             (-0.2, 0.19, 0.16, 0.24), (0.2, 0.16, 0.15, 0.24), (0.6, 0.09, 0.13, 0.25), (1.0, 0.045, 0.09, 0.26), (1.3, 0.02, 0.04, 0.26)]
 kit.body(STATIONS, 14, skin, rows=37, squareness=2.3)
 # the fin: up the back from the shoulders, round the tip of the tail and back along under it

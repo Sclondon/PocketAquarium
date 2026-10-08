@@ -10,12 +10,12 @@ extends RefCounted
 ## `look`, which is what fish_mesh.gd builds it from.
 
 ## The order they are listed in, in the shop and the fish-dex.
-const ORDER := ["guppy", "tetra", "goldfish", "angelfish", "betta", "clownfish", "puffer",
-		"kuhli", "glass_catfish", "hatchetfish", "sparkling_gourami",
+const ORDER := ["betta", "kuhli", "glass_catfish", "hatchetfish", "sparkling_gourami",
 		"white_cloud", "hillstream_loach", "cave_tetra", "axolotl", "mystery_snail", "nerite", "cherry_shrimp", "amano_shrimp",
 		"pearl_danio", "scarlet_badis", "pea_puffer", "butterflyfish", "elephantnose", "knifefish", "bichir",
 		"shell_dweller", "bamboo_shrimp", "fire_newt", "milk_frog", "glass_frog", "chameleon", "blue_tongue",
 		"dart_frog", "horned_frog", "crested_gecko", "leopard_gecko", "sandfish", "vampire_crab", "mudskipper",
+		"guppy", "tetra", "goldfish", "angelfish", "clownfish", "puffer",
 		"glow_guppy", "sunset_fantail", "electric_angel", "royal_veiltail", "midnight_betta",
 		"harlequin", "tangerine", "bumblepuff", "aurora_koi", "ghost_angel", "moonfish",
 		"jellyfish", "seahorse", "pinecone_fish", "flashlight_fish", "mantis_shrimp", "salmon", "tuna", "shark", "orca", "giant_squid", "blue_whale", "olm"]
@@ -428,7 +428,10 @@ const MUTANT_CHANCE := 0.04
 
 const NAMES := ["Biscuit", "Pickle", "Noodle", "Bubbles", "Mango", "Pepper", "Waffle", "Dot", "Gus",
 		"Olive", "Pip", "Turnip", "Sushi", "Moss", "Clementine", "Bean", "Figgy", "Juniper", "Tofu",
-		"Marble", "Sprout", "Peaches", "Button", "Radish", "Nori", "Opal", "Crumb", "Plum"]
+		"Marble", "Sprout", "Peaches", "Button", "Radish", "Nori", "Opal", "Crumb", "Plum", "Thimble", "Sorrel", "Quince",
+		"Bramble", "Fennel", "Mackerel", "Pudding", "Hobnail", "Tansy", "Whelk", "Conker", "Barnacle", "Damson", "Fig", "Kettle",
+		"Lentil", "Medlar", "Nettle", "Oyster", "Parsnip", "Rook", "Samphire", "Teasel", "Vetch", "Wren", "Yarrow", "Cobble",
+		"Dabble", "Ember", "Flint", "Gorse", "Hazel", "Inkcap", "Jetsam", "Kelp", "Limpet", "Mossy", "Newt", "Otter"]
 
 
 ## Which water a kind lives in: "fresh" or "sea".

@@ -9,7 +9,7 @@ render_mode unshaded, cull_disabled;
 #include "res://shaders/water_common.gdshaderinc"
 
 // Pixels wide on a screen 720 high.
-uniform float width = 3.0;
+uniform float width = 3.2;
 uniform vec3 ink : source_color = vec3(0.03, 0.02, 0.07);
 // A model made in Blender: its fins have thickness, so they are pushed out along their normals
 // like the rest of it, and how wide the line is at each point comes in its second UV.
@@ -30,7 +30,7 @@ void vertex() {
 	float len = length(dir);
 	if (len > 1e-5) {
 		// (thinner on a fin, and on anything far enough off to be small)
-		float px = width * (modelled ? UV2.x : (fin ? 0.7 : 1.0)) * clamp(1.8 / clip.w, 0.4, 1.0);
+		float px = width * (modelled ? UV2.x : (fin ? 0.7 : 1.0)) * clamp(3.0 / clip.w, 0.72, 1.0);
 		clip.xy += dir / len * px * 2.0 / 720.0 * vec2(VIEWPORT_SIZE.y / VIEWPORT_SIZE.x, 1.0) * clip.w;
 	}
 	POSITION = clip;

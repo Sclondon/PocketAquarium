@@ -4,6 +4,8 @@ extends "res://scripts/ui/sheet.gd"
 ## are, and the last few things that happened to it.
 
 signal give_away(fish: Node)
+## Net it out and put it in the home on another shelf.
+signal moved(fish: Node, to_slot: int)
 
 const Species := preload("res://scripts/tank/species.gd")
 const FishIcon := preload("res://scripts/ui/fish_icon.gd")
@@ -19,6 +21,9 @@ const TEMPERS := {
 }
 
 var fish: Node
+## Asks the shelf where else this animal could go: it answers with [slot, name of the home]
+## for each (main.gd sets this).
+var other_homes: Callable
 
 
 func _init() -> void:
@@ -90,6 +95,15 @@ func refresh() -> void:
 	for i in range(fish.buddy.moments.size() - 1, -1, -1):
 		body.add_child(_line(fish.buddy.moments[i] + "."))
 
+	# the other homes on the shelf it could live in, to net it across to
+	if other_homes.is_valid():
+		var places: Array = other_homes.call(fish)
+		if not places.is_empty():
+			body.add_child(_head("MOVE IT"))
+		for place: Array in places:
+			body.add_child(UiKit.button("TO THE %s" % str(place[1]).to_upper(), func() -> void:
+				moved.emit(fish, int(place[0]))
+				close(), Vector2(300, 40)))
 	var foot := HBoxContainer.new()
 	foot.alignment = BoxContainer.ALIGNMENT_END
 	body.add_child(foot)

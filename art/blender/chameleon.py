@@ -26,8 +26,8 @@ def skin(t, up, side):
 
 
 # tall and thin: it stands well clear of the ground on its legs
-STATIONS = [(-1.0, 0.05, 0.06, 0.5), (-0.85, 0.11, 0.15, 0.52), (-0.6, 0.12, 0.2, 0.54), (-0.2, 0.14, 0.3, 0.56),
-            (0.25, 0.13, 0.28, 0.56), (0.6, 0.07, 0.14, 0.54), (0.85, 0.045, 0.08, 0.5)]
+STATIONS = [(-1.0, 0.07, 0.06, 0.5), (-0.85, 0.17, 0.15, 0.52), (-0.6, 0.2, 0.2, 0.54), (-0.2, 0.23, 0.3, 0.56),
+            (0.25, 0.21, 0.28, 0.56), (0.6, 0.1, 0.14, 0.54), (0.85, 0.06, 0.08, 0.5)]
 kit.body(STATIONS, 12, skin, rows=29, squareness=2.6)
 # the casque
 kit.fin([(0.0, kit.top(z) - 0.02, z) for z in (-0.85, -0.72, -0.6)], [(0.0, kit.top(-0.85) + 0.08, -0.82), (0.0, kit.top(-0.72) + 0.42, -0.6), (0.0, kit.top(-0.6) + 0.1, -0.52)],
@@ -42,8 +42,8 @@ for i in range(1, 15):
 kit.tube(path, radii, lambda t, k: TEAL if int(t * 12.0) % 2 == 0 else GREEN, around=6)
 for sx in (-1.0, 1.0):
     # an eye in a cone
-    kit.blob((sx * 0.1, 0.6, -0.82), (0.07, 0.09, 0.09), one(GREEN), around=8, rows=5)
-    kit.eye((sx * 0.165, 0.6, -0.82), (sx, 0.0, -0.1), 0.035, srgb(0.1, 0.1, 0.1))
+    kit.blob((sx * 0.15, 0.6, -0.82), (0.1, 0.11, 0.11), one(GREEN), around=8, rows=5)
+    kit.eye((sx * 0.245, 0.6, -0.83), (sx, 0.0, -0.1), 0.04, srgb(0.1, 0.1, 0.1))
     # legs: straight down, with a foot like a pair of tongs
     for z, lean in ((-0.45, -0.1), (0.3, 0.1)):
         hw, hh, yc = kit.ring(z)

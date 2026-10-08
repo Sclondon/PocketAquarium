@@ -28,6 +28,15 @@ const ZOOM_IN := 0.6
 const ZOOM_OUT := 1.7
 const CLOSEST := 0.3
 const FOLLOW_FROM := 1.0
+## What a new keeper is told, a line at a time and half a minute apart, once each for good.
+const TIPS := [
+	"FEED, then tap the water. Hold your finger still on the glass to offer it by hand.",
+	"Tap a fish to follow it. Each one has a page of its own.",
+	"HAND: rest a finger on the glass. The ones that know you will come.",
+	"Turn the LAMP off and take the TORCH. Some of them only come out in the dark.",
+	"UP and DOWN: there are empty shelves to fill, and something on top.",
+]
+
 ## The slot every shelf starts with a tank in: the middle one.
 const FIRST_SLOT := 2
 ## Past the top shelf is the top of the unit, where the covered tank stands: it is looked at
@@ -61,8 +70,8 @@ var _yaw := 0.25
 var _pitch := 0.14
 ## How far off the camera is: a share of the distance that just fits the whole tank in. With a
 ## fish selected it may come in far closer (CLOSEST metres from the fish).
-var _zoom := 1.12
-var _zoom_before := 1.12
+var _zoom := 1.0
+var _zoom_before := 1.0
 var _focus := Vector3.ZERO
 var _away := 0.0
 var _pressed := false
@@ -77,6 +86,8 @@ var _on_glass := false
 ## notebook is next looked over for pages that have turned up.
 var _uncovered_for := 0.0
 var _notes_in := 1.0
+## Seconds till the next of the hints a new keeper is given (see TIPS).
+var _tip_in := 6.0
 ## With the food in hand, a finger held still on the glass holds a pinch out there (see
 ## `Tank.offer`): when the finger went down, and whether it is holding food out now.
 var _pressed_when := 0.0
@@ -124,6 +135,8 @@ func _ready() -> void:
 	hud.pad_input.connect(_on_pad)
 	hud.tool_picked.connect(_pick_tool)
 	hud.give_away.connect(_give_away)
+	hud.move_fish.connect(_move)
+	hud.page.other_homes = _other_homes
 	hud.card_closed.connect(_select.bind(null))
 	hud.next_fish.connect(_select_next)
 	hud.shelf_stepped.connect(func(step: int) -> void: look_at_slot(slot + step))
@@ -167,6 +180,14 @@ func _process(delta: float) -> void:
 	room.set_lamp(glow)
 	_place_camera(delta)
 	_scrub_sound = maxf(_scrub_sound - delta, 0.0)
+	# the hints, for as long as there are any left to give
+	var told := int(Save.data.get("tips", 0))
+	if told < TIPS.size() and not hud.is_sheet_open():
+		_tip_in -= delta
+		if _tip_in <= 0.0:
+			_tip_in = 28.0
+			hud.say(TIPS[told])
+			Save.data["tips"] = told + 1
 	_notes_in -= delta
 	if _notes_in <= 0.0:
 		_notes_in = 1.0
@@ -314,8 +335,8 @@ func _fit() -> float:
 	var screen := _container.size
 	var size := Vector3(tank.width, tank.height, tank.depth) if tank != null else Vector3(2.2, 1.5, 1.2)
 	var half := tan(deg_to_rad(FOV) * 0.5)
-	var need_h := (size.x * 0.5 + 0.35) / (half * screen.x / maxf(screen.y, 1.0))
-	var need_v := (size.y * 0.5 + 0.45) / half
+	var need_h := (size.x * 0.5 + 0.16) / (half * screen.x / maxf(screen.y, 1.0))
+	var need_v := (size.y * 0.5 + 0.34) / half
 	return maxf(need_h, need_v) + size.z * 0.5
 
 
@@ -540,7 +561,11 @@ func _select(fish: Node) -> void:
 	elif fish == null and selected != null:
 		_zoom = _zoom_before
 		_pitch = maxf(_pitch, 0.0)
+	if selected != null and is_instance_valid(selected):
+		selected.mark(false)
 	selected = fish
+	if fish != null:
+		fish.mark(true)
 	hud.show_fish(fish)
 
 
@@ -559,6 +584,37 @@ func _select_next(step: int) -> void:
 	Sfx.play("ui", 1.4)
 
 
+## The homes on the other shelves that an animal could be moved to: ones its kind can live in,
+## with room for it. Each as [slot, name].
+func _other_homes(fish: Node) -> Array:
+	var places: Array = []
+	for i in tanks.size():
+		var t := tanks[i]
+		if t != null and t != tank and Species.lives_in(fish.species, t.kind) and t.has_room_for(fish.species):
+			places.append([i, "%s, shelf %d" % [t.about().name, i + 1]])
+	return places
+
+
+## Nets an animal out of the home being looked at and puts it in the one on another shelf. It
+## keeps its name, its temper and its bond with the keeper, and loses its ties: the ones it
+## knew are not there.
+func _move(fish: Node, to_slot: int) -> void:
+	if not is_instance_valid(fish) or tank == null or tanks[to_slot] == null:
+		return
+	var data: Dictionary = fish.to_data()
+	data.buddy["ties"] = {}
+	data.buddy["id"] = 0
+	var moments: Array = data.buddy.get("moments", [])
+	moments.append("Moved to the %s" % tanks[to_slot].about().name)
+	data.buddy["moments"] = moments
+	tank.remove_fish(fish)
+	tanks[to_slot].adopt(data)
+	_select(null)
+	hud.say("%s is in the %s now." % [data.name, tanks[to_slot].about().name])
+	Sfx.play("plop")
+	save()
+
+
 func _give_away(fish: Node) -> void:
 	if is_instance_valid(fish) and tank != null:
 		hud.say("%s has gone to a good home." % fish.fish_name)
@@ -567,7 +623,7 @@ func _give_away(fish: Node) -> void:
 
 
 func _on_discovered(species: String) -> void:
-	hud.say("New in the fish-dex: %s!" % Species.LIST[species].name)
+	hud.say("New in the book: %s." % Species.LIST[species].name)
 	Sfx.play("new")
 	# the arcade's leaderboard counts kinds of animal kept
 	Tickets.post({"type": "PLAYER_DIED", "score": dex.size()})

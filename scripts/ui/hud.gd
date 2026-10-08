@@ -10,6 +10,8 @@ signal tool_picked(tool: String)
 signal give_away(fish: Node)
 ## A page of the notebook wants reading (the keeper asked for it).
 signal notebook_opened
+## Net an animal out and put it in the home on another shelf.
+signal move_fish(fish: Node, to_slot: int)
 signal card_closed
 ## Step to the next fish (1) or the one before (-1).
 signal next_fish(step: int)
@@ -154,6 +156,7 @@ func setup() -> void:
 	homes = Homes.new()
 	homes.wanted.connect(func(kind: String) -> void: tank_wanted.emit(kind))
 	page.give_away.connect(func(fish: Node) -> void: give_away.emit(fish))
+	page.moved.connect(func(fish: Node, to_slot: int) -> void: move_fish.emit(fish, to_slot))
 	var shop_button := UiKit.button("SHOP", shop.open, KEY)
 	bar.add_child(shop_button)
 	bar.add_child(UiKit.button("BOOK", dex.open, KEY))
@@ -269,6 +272,9 @@ func _build_card(root: Control) -> void:
 
 
 func _process(_delta: float) -> void:
+	# (messages and the shelf buttons keep out from under an open sheet)
+	_toast_plate.visible = not is_sheet_open()
+	_up.get_parent().visible = not is_sheet_open()
 	if tank == null:
 		_day.text = ""
 		return
@@ -341,11 +347,15 @@ func show_fish(fish: Node) -> void:
 ## A message that fades after a few seconds.
 func say(text: String) -> void:
 	_toast.text = text
+	# (a long one is wrapped to fit a phone, and stays up long enough to read)
+	_toast.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_toast.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_toast.custom_minimum_size.x = minf(text.length() * 9.5, minf(get_viewport().get_visible_rect().size.x - 60.0, 900.0))
 	if _toast_tween != null:
 		_toast_tween.kill()
 	_toast_plate.modulate.a = 1.0
 	_toast_tween = create_tween()
-	_toast_tween.tween_interval(3.5)
+	_toast_tween.tween_interval(3.0 + _toast.text.length() * 0.045)
 	_toast_tween.tween_property(_toast_plate, "modulate:a", 0.0, 0.8)
 
 

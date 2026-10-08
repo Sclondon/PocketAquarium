@@ -86,6 +86,10 @@ var _gait := "swim"
 var _rest := 0.0
 var _hop := 0.0
 var _seen_by_torch := false
+## A push away from whoever is too close, so they gather round a thing and do not pile into it.
+var _apart := Vector3.ZERO
+## Whether it is the one the keeper has in hand (its outline says so).
+var _marked := false
 
 
 func setup(in_tank, data: Dictionary) -> void:
@@ -135,6 +139,8 @@ func setup(in_tank, data: Dictionary) -> void:
 	position = box.position + box.size * Vector3(_rng.randf(), _rng.randf(), _rng.randf())
 	if _gait != "swim":
 		position.y = tank.floor_y(position.x, position.z) + _stand()
+	else:
+		position = _at_its_level(position, box)
 	_heading = Vector3(1.0 if _rng.randf() < 0.5 else -1.0, 0.0, 0.0)
 	_apply_pose()
 
@@ -171,7 +177,7 @@ func set_light(amount: float, look: Dictionary, depth: float, water_top: float) 
 	_mat.set_shader_parameter("shadow", look.shadow)
 	_mat.set_shader_parameter("haze", look.haze)
 	_mat.set_shader_parameter("tank_depth", depth)
-	_line.set_shader_parameter("ink", look.ink)
+	_line.set_shader_parameter("ink", Color(1.0, 0.82, 0.4) if _marked else look.ink)
 	_line.set_shader_parameter("lamp", amount)
 
 
@@ -269,12 +275,12 @@ func _swim(delta: float) -> void:
 	var want := to.normalized() * speed if to.length() > 0.02 else Vector3.ZERO
 	_vel = _vel.lerp(want, 1.0 - exp(-2.5 * delta))
 	_burst = _burst.lerp(Vector3.ZERO, 1.0 - exp(-2.0 * delta))
-	var v := _vel + _burst
+	var v := _vel + _burst + _apart
 	# (after food, and to sleep, it will nose right down to the gravel, which it otherwise
 	# keeps clear of)
 	var low := box.position
 	if feeding or doing in ["sleeping", "buried"]:
-		low.y = 0.12 + _size() * 0.3
+		low.y = 0.12 + _size() * (0.05 if doing == "buried" else 0.3)
 	position = (position + v * delta).clamp(low, box.end)
 	if v.length() > 0.02:
 		# it swims level: nose up or down only a little, and never rolls
@@ -296,11 +302,30 @@ func _swim(delta: float) -> void:
 
 # ------------------------------------------------------------------ what it is about
 
+## Works out the push away from the others that are too close.
+func _keep_apart() -> void:
+	_apart = Vector3.ZERO
+	for other in tank.fish:
+		if other == self or other.dead:
+			continue
+		var gap: Vector3 = position - other.position
+		var room: float = (reach() + other.reach()) * 0.85
+		if gap.length() < room and gap.length() > 0.001:
+			_apart += gap.normalized() * (1.0 - gap.length() / room) * 0.35
+	_apart = _apart.limit_length(0.3)
+
+
+## Shows that it is the one the keeper has in hand, or that it no longer is.
+func mark(on: bool) -> void:
+	_marked = on
+
+
 ## Makes up its mind what to be about (`doing`), a couple of times a second. In order: it sees
 ## out a chase; it minds the keeper's finger; it says hello; it sleeps when the lamp is off;
 ## it begs when it is hungry and knows who feeds it; and otherwise it minds the others, by its
 ## kind and its temper: guards its patch, keeps a friend company, shoals, or just wanders.
 func _decide() -> void:
+	_keep_apart()
 	if _plan == "jelly":
 		doing = "wandering"
 		return
@@ -346,7 +371,7 @@ func _decide() -> void:
 	if not tank.lamp_on and not nocturnal:
 		doing = "sleeping"
 		return
-	if hunger > Life.HUNGRY and stage in ["friendly", "close"]:
+	if hunger > Life.HUNGRY and stage in ["friendly", "close"] and not nocturnal:
 		doing = "begging"
 		return
 	_mind_the_others()
@@ -471,8 +496,8 @@ func _steer(delta: float, box: AABB) -> void:
 			_pace = 1.4 if doing == "hiding" else 0.5
 		"buried":
 			var den: Vector3 = tank.hide_for(_spot())
-			_target = Vector3(den.x + (buddy.spot.z - 0.5) * 0.3, box.position.y, den.z)
-			_pace = 0.6
+			_target = Vector3(den.x + (buddy.spot.z - 0.5) * 0.5, box.position.y, den.z)
+			_pace = 1.8 if position.distance_to(_target) > 0.3 else 0.3
 		"greeting":
 			_target = Vector3(lerpf(box.position.x, box.end.x, 0.2 + 0.6 * buddy.spot.x),
 					lerpf(box.position.y, box.end.y, 0.3 + 0.5 * buddy.spot.y), front)
@@ -518,7 +543,7 @@ func _steer(delta: float, box: AABB) -> void:
 				if _rng.randf() < 0.5:
 					_target = (_spot() + Vector3(_rng.randf_range(-0.3, 0.3), _rng.randf_range(-0.15, 0.15),
 							_rng.randf_range(-0.2, 0.2))).clamp(box.position, box.end)
-	if doing in ["wandering", "shoaling", "keeping company", "greeting"]:
+	if doing in ["wandering", "shoaling", "keeping company", "greeting", "begging", "sleeping", "sulking"]:
 		_target = _at_its_level(_target, box)
 
 
@@ -556,7 +581,7 @@ func mood() -> String:
 		"hiding":
 			return "hiding from you"
 		"buried":
-			return "buried till dark"
+			return "buried till dark" if _gait == "swim" else "hidden away till dark"
 		"dived":
 			return "under the sand"
 		"sulking":
@@ -662,7 +687,7 @@ func _roam(delta: float) -> void:
 	var hurried := doing in ["fleeing", "chasing", "hiding", "feeding", "following"]
 	_rest = 0.0 if hurried else maxf(_rest - delta, 0.0)
 	var moving: bool = _rest <= 0.0 and to.length() > 0.04 and doing != "dived"
-	var v := _burst
+	var v := _burst + Vector3(_apart.x, 0.0, _apart.z)
 	_burst = _burst.lerp(Vector3.ZERO, 1.0 - exp(-3.0 * delta))
 	if moving:
 		v += to.normalized() * 0.2 * float(info().speed) * _pace * lerpf(0.4, 1.0, health)
