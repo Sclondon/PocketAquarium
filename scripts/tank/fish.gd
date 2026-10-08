@@ -251,7 +251,7 @@ func _swim(delta: float) -> void:
 	var box: AABB = tank.swim_box(minf(reach(), 0.3))
 	_busy = maxf(_busy - delta, 0.0)
 	var feeding := false
-	if hunger > PECKISH and doing != "fleeing":
+	if hunger > PECKISH and doing != "fleeing" and not Species.habit(species, "pest"):
 		# (only one that is used to the keeper will take food from the keeper's fingers)
 		var food: Dictionary = tank.nearest_food(position, buddy.stage() == "new")
 		if not food.is_empty():
@@ -278,7 +278,7 @@ func _swim(delta: float) -> void:
 	var want := to.normalized() * speed if to.length() > 0.02 else Vector3.ZERO
 	_vel = _vel.lerp(want, 1.0 - exp(-2.5 * delta))
 	_burst = _burst.lerp(Vector3.ZERO, 1.0 - exp(-2.0 * delta))
-	var v := _vel + _burst + _apart
+	var v := _vel + _burst + (Vector3.ZERO if feeding else _apart)
 	# (after food, and to sleep, it will nose right down to the gravel, which it otherwise
 	# keeps clear of)
 	var low := box.position
@@ -693,7 +693,7 @@ func _roam(delta: float) -> void:
 	var box: AABB = tank.walk_box(_gait)
 	_busy = maxf(_busy - delta, 0.0)
 	var feeding := false
-	if hunger > PECKISH and doing != "fleeing":
+	if hunger > PECKISH and doing != "fleeing" and not Species.habit(species, "pest"):
 		var food: Dictionary = tank.nearest_food(position, buddy.stage() == "new")
 		if not food.is_empty() and food.landed:
 			feeding = true
@@ -722,7 +722,7 @@ func _roam(delta: float) -> void:
 	var hurried := doing in ["fleeing", "chasing", "hiding", "feeding", "following"]
 	_rest = 0.0 if hurried else maxf(_rest - delta, 0.0)
 	var moving: bool = _rest <= 0.0 and to.length() > 0.04 and doing != "dived"
-	var v := _burst + Vector3(_apart.x, 0.0, _apart.z)
+	var v := _burst + (Vector3.ZERO if feeding else Vector3(_apart.x, 0.0, _apart.z))
 	_burst = _burst.lerp(Vector3.ZERO, 1.0 - exp(-3.0 * delta))
 	if moving:
 		v += to.normalized() * 0.2 * float(info().speed) * _pace * lerpf(0.4, 1.0, health)

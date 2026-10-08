@@ -145,6 +145,7 @@ func _smoke() -> void:
 func _keep(tank, days: int) -> void:
 	var start: int = tank.fish.size()
 	var died := 0
+	var lost := {}
 	var worst_waste := 0.0
 	var worst_o2 := 1.0
 	for day in days:
@@ -161,6 +162,7 @@ func _keep(tank, days: int) -> void:
 			for f in tank.fish.duplicate():
 				if f.dead:
 					died += 1
+					lost[f.species] = int(lost.get(f.species, 0)) + 1
 					tank.remove_fish(f)
 	var hunger := 0.0
 	for f in tank.fish:
@@ -170,6 +172,8 @@ func _keep(tank, days: int) -> void:
 			hunger / maxf(tank.fish.size(), 1.0)])
 	print("smoke:   worst waste %.2f, lowest oxygen %.2f, algae %.2f, crowd %.1f/%.0f, dex %d/%d %s" % [worst_waste, worst_o2,
 			tank.algae, tank.crowd(), tank.capacity(), tank.dex.size(), Species.ORDER.size(), str(tank.dex.keys())])
+	if not lost.is_empty():
+		print("smoke:   the dead, by kind: %s" % str(lost))
 	# (two minutes of each day were watched)
 	var passed := 0
 	for kind: String in tank.seen:
