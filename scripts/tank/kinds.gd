@@ -4,7 +4,7 @@ extends RefCounted
 ##
 ## For each: its `name`, a `blurb` for the catalogue and its `price` in tickets; how far up it
 ## the `water` comes (0.92 for a full tank, 0 for dry land, between for a paludarium, which
-## also has a `bank` of land along one side); the `sizes` it comes in (the tanks' three, or a
+## also has a .bank. of land along one side; .round. for a jar, whose wall is a ring); the `sizes` it comes in (the tanks' three, or a
 ## jar's one); the colour of its water and of what covers its floor (`sand`, and how `coarse`);
 ## its `look`, the tones of its light (see water_common.gdshaderinc) with the colour it spills
 ## into the room and the colour of the ink line; the `air` behind what is above the water; and
@@ -79,7 +79,7 @@ const LIST := {
 		"warm": 0.55, "salt": 0.5, "starter": [], "plants": 0, "swarm": "sea_monkey",
 	},
 	"snail": {
-		"name": "Snail jar", "price": 60, "water": 0.9, "sizes": JARS,
+		"name": "Snail jar", "price": 60, "water": 0.9, "round": true, "sizes": JARS,
 		"blurb": "A jar of green water and slow company.",
 		"water_colour": Color(0.5, 0.7, 0.35), "sand": Color(0.45, 0.42, 0.3), "coarse": 0.6, "air": Color(0.02, 0.03, 0.02),
 		"look": {"key": Color(0.9, 1.0, 0.75), "shadow": Color(0.12, 0.25, 0.2), "haze": Color(0.08, 0.14, 0.06),
@@ -87,7 +87,7 @@ const LIST := {
 		"warm": 0.6, "starter": [], "plants": 2,
 	},
 	"shrimp": {
-		"name": "Shrimp jar", "price": 90, "water": 0.9, "sizes": JARS,
+		"name": "Shrimp jar", "price": 90, "water": 0.9, "round": true, "sizes": JARS,
 		"blurb": "Planted thick, with no pump and no filter: the plants do the work.",
 		"water_colour": Color(0.4, 0.75, 0.45), "sand": Color(0.2, 0.18, 0.16), "coarse": 0.3, "air": Color(0.02, 0.03, 0.02),
 		"look": {"key": Color(0.85, 1.0, 0.8), "shadow": Color(0.1, 0.26, 0.22), "haze": Color(0.04, 0.14, 0.08),

@@ -159,6 +159,8 @@ var _lamp := 1.0
 ## Where each shoaling kind is heading, and until when (see `shoal_goal`).
 var _shoals := {}
 var _next_id := 1
+## The pairs that are courting, and how long each has left before the egg is laid.
+var _courting: Array[Dictionary] = []
 var _specks: MultiMeshInstance3D
 
 
@@ -251,7 +253,7 @@ func swim_box(margin: float) -> AABB:
 		# (the water is the half that is not the bank)
 		low.x = width * 0.08
 	var high := Vector3(width * 0.5 - margin, water_level - margin, depth * 0.5 - margin)
-	return AABB(low, (high - low).max(Vector3.ONE * 0.01))
+	return _round_off(AABB(low, (high - low).max(Vector3.ONE * 0.01)))
 
 
 ## Where an animal on foot may be: the floor, kept clear of the glass, and (for a climber) the
@@ -261,7 +263,7 @@ func walk_box(gait: String) -> AABB:
 	var high := Vector3(width * 0.5 - 0.12, height * 0.8 if gait in ["climb", "glide"] else 0.6, depth * 0.5 - 0.12)
 	if about().get("bank", false) and gait != "glide":
 		high.x = -width * 0.06
-	return AABB(low, high - low)
+	return _round_off(AABB(low, high - low))
 
 
 ## How high the gravel is at a place. A home with a bank has one along its left side, rising
@@ -474,18 +476,23 @@ func rebuild() -> void:
 	rng.seed = 11
 	var hw := width * 0.5
 	var hd := depth * 0.5
+	var round := is_round()
 
 	# the frame: a base, a rim round the top, a post at each corner, and the hood with its lamp
+	# (or, for a jar, a foot and a lid)
 	var frame := MB.new()
 	var trim := Color(0.3, 0.2, 0.42) if kind == "sea" else Color(0.24, 0.26, 0.33)
-	Props.box(frame, Vector3(0.0, -0.05, 0.0), Vector3(width + 0.1, 0.1, depth + 0.1), trim)
-	for sz: float in [-1.0, 1.0]:
+	if round:
+		_jar_frame(frame, trim)
+	else:
+		Props.box(frame, Vector3(0.0, -0.05, 0.0), Vector3(width + 0.1, 0.1, depth + 0.1), trim)
+		Props.box(frame, Vector3(0.0, height + 0.08, -hd * 0.25), Vector3(width * 0.94, 0.09, depth * 0.4), Color(0.13, 0.14, 0.18))
+	for sz: float in ([] if round else [-1.0, 1.0]):
 		Props.box(frame, Vector3(0.0, height, sz * hd), Vector3(width + 0.08, 0.05, 0.05), trim)
-	for sx: float in [-1.0, 1.0]:
+	for sx: float in ([] if round else [-1.0, 1.0]):
 		Props.box(frame, Vector3(sx * hw, height, 0.0), Vector3(0.05, 0.05, depth + 0.08), trim)
 		for sz: float in [-1.0, 1.0]:
 			Props.box(frame, Vector3(sx * hw, height * 0.5, sz * hd), Vector3(0.035, height, 0.035), trim)
-	Props.box(frame, Vector3(0.0, height + 0.08, -hd * 0.25), Vector3(width * 0.94, 0.09, depth * 0.4), Color(0.13, 0.14, 0.18))
 	if kind == "magic":
 		# the magic shows: a line of gold runs round the base, and a gem glows at each corner
 		for sz: float in [-1.0, 1.0]:
@@ -503,14 +510,18 @@ func rebuild() -> void:
 	strip.mesh = strip_mesh
 	strip.material_override = _hood
 	strip.position = Vector3(0.0, height + 0.03, -hd * 0.25)
+	strip.visible = not round
 	_shell.add_child(strip)
 	_light.position = Vector3(0.0, height + 0.3, hd * 0.3)
 	_light.omni_range = width * 1.5 + 3.5
 	# the far end of the water, on the back pane (see backdrop.gdshader)
 	var far := MB.new()
-	far.quad(Vector3(-hw, 0.0, -hd + 0.004), Vector3(hw, 0.0, -hd + 0.004), Vector3(hw, height, -hd + 0.004),
-			Vector3(-hw, height, -hd + 0.004), Color.WHITE, Vector3.BACK, Vector2(0, 0), Vector2(width, 0),
-			Vector2(width, height), Vector2(0, height))
+	if round:
+		_jar_back(far)
+	else:
+		far.quad(Vector3(-hw, 0.0, -hd + 0.004), Vector3(hw, 0.0, -hd + 0.004), Vector3(hw, height, -hd + 0.004),
+				Vector3(-hw, height, -hd + 0.004), Color.WHITE, Vector3.BACK, Vector2(0, 0), Vector2(width, 0),
+				Vector2(width, height), Vector2(0, height))
 	_shell.add_child(_instance(far.build(), _back))
 	_back.set_shader_parameter("level", water_level)
 	_back.set_shader_parameter("air", about().air)
@@ -526,6 +537,8 @@ func rebuild() -> void:
 			var x1 := lerpf(-hw, hw, float(i + 1) / nx)
 			var z0 := lerpf(-hd, hd, float(j) / nz)
 			var z1 := lerpf(-hd, hd, float(j + 1) / nz)
+			if not _in_jar((x0 + x1) * 0.5, (z0 + z1) * 0.5, 1.02):
+				continue
 			bed.quad(Vector3(x0, floor_y(x0, z0), z0), Vector3(x1, floor_y(x1, z0), z0), Vector3(x1, floor_y(x1, z1), z1),
 					Vector3(x0, floor_y(x0, z1), z1), Color.WHITE, Vector3.UP)
 	_shell.add_child(_instance(bed.build(), _sand))
@@ -575,6 +588,20 @@ func rebuild() -> void:
 		Props.rock(mb, _on_floor(-hw * 0.3, -hd * 0.45), 0.3, rng)
 		Props.rock(mb, _on_floor(-hw * 0.05, -hd * 0.55), 0.22, rng)
 		Props.box(mb, _on_floor(-hw * 0.18, -hd * 0.5) + Vector3(0.0, 0.34, 0.0), Vector3(0.75, 0.08, 0.45), Props.shade(stone, 0.85), rng, 0.02)
+	if decor.has("driftwood"):
+		var root := Color(0.4, 0.27, 0.16)
+		var foot := _on_floor(hw * 0.25, -hd * 0.25)
+		Props.box(mb, foot + Vector3(0.0, 0.22, 0.0), Vector3(0.7, 0.11, 0.12), root, rng, 0.02, Basis(Vector3.BACK, 0.7) * Basis(Vector3.UP, 0.3))
+		Props.box(mb, foot + Vector3(0.22, 0.4, 0.05), Vector3(0.5, 0.07, 0.08), Props.shade(root, 0.85), rng, 0.02, Basis(Vector3.BACK, -0.3) * Basis(Vector3.UP, -0.5))
+		Props.box(mb, foot + Vector3(-0.15, 0.12, 0.1), Vector3(0.4, 0.06, 0.07), Props.shade(root, 1.1), rng, 0.02, Basis(Vector3.BACK, 0.2) * Basis(Vector3.UP, 1.1))
+	if decor.has("slate"):
+		var grey := Color(0.36, 0.38, 0.44)
+		var at := _on_floor(-hw * 0.45, hd * 0.1)
+		for sx: float in [-1.0, 1.0]:
+			Props.box(mb, at + Vector3(sx * 0.22, 0.13, 0.0), Vector3(0.08, 0.26, 0.4), grey, rng, 0.015)
+		Props.box(mb, at + Vector3(0.0, 0.29, 0.0), Vector3(0.62, 0.06, 0.46), Props.shade(grey, 1.15), rng, 0.015, Basis(Vector3.UP, 0.15))
+	if decor.has("moss"):
+		Props.blob(mb, _on_floor(hw * 0.05, hd * 0.45) + Vector3(0.0, 0.09, 0.0), Vector3(0.11, 0.1, 0.11), rng, Color(0.2, 0.5, 0.16), 7, 4, 0.08)
 	if decor.has("castle"):
 		Props.castle(mb, _on_floor(-hw * 0.38, -hd * 0.35), rng)
 	if decor.has("chest"):
@@ -602,10 +629,10 @@ func rebuild() -> void:
 
 	# the glass: four panes facing out, with UVs in metres (see glass.gdshader)
 	var panes := MB.new()
-	var corners := [Vector3(-hw, 0, hd), Vector3(hw, 0, hd), Vector3(hw, 0, -hd), Vector3(-hw, 0, -hd)]
-	for i in 4:
+	var corners: Array = _jar_ring() if round else [Vector3(-hw, 0, hd), Vector3(hw, 0, hd), Vector3(hw, 0, -hd), Vector3(-hw, 0, -hd)]
+	for i in corners.size():
 		var a: Vector3 = corners[i]
-		var b: Vector3 = corners[(i + 1) % 4]
+		var b: Vector3 = corners[(i + 1) % corners.size()]
 		var up := Vector3(0.0, height, 0.0)
 		var run := a.distance_to(b)
 		panes.quad(a, b, b + up, a + up, Color.WHITE, (a + b) * 0.5, Vector2(0, 0), Vector2(run, 0),
@@ -618,7 +645,7 @@ func rebuild() -> void:
 	sheet.size = Vector2(width - 0.02, depth - 0.02)
 	sheet.subdivide_width = 16
 	sheet.subdivide_depth = 8
-	top.mesh = sheet
+	top.mesh = _jar_disc() if round else sheet
 	top.material_override = _top
 	top.position.y = water_level
 	top.visible = is_wet()
@@ -634,6 +661,11 @@ func _instance(mesh: Mesh, mat: Material) -> MeshInstance3D:
 
 
 func _on_floor(x: float, z: float) -> Vector3:
+	# (in a jar, what would stand outside the wall is brought inside it)
+	if not _in_jar(x, z, 0.78):
+		var out := sqrt(pow(x / (width * 0.5), 2.0) + pow(z / (depth * 0.5), 2.0))
+		x *= 0.78 / out
+		z *= 0.78 / out
 	return Vector3(x, floor_y(x, z) - 0.01, z)
 
 
@@ -913,6 +945,7 @@ func step(delta: float) -> void:
 	_step_water(lived)
 	_step_food(delta)
 	_step_critters(delta)
+	_step_courting(delta)
 	_step_eggs(lived)
 	_try_breeding(lived)
 	_step_looks(lerpf(0.15, 1.0, _lamp))
@@ -1024,6 +1057,30 @@ func _step_eggs(delta: float) -> void:
 			changed.emit()
 
 
+## Sees each courting pair through to its egg.
+func _step_courting(delta: float) -> void:
+	for pair in _courting.duplicate():
+		pair.left -= delta
+		if pair.left > 0.0:
+			continue
+		_courting.erase(pair)
+		var a: Fish = pair.a
+		var b: Fish = pair.b
+		if not is_instance_valid(a) or not is_instance_valid(b) or a.dead or b.dead:
+			continue
+		var mid := (a.position + b.position) * 0.5
+		_lay(pair.child, mid.x, mid.z, 0.0, pair.grade, [a.buddy.id, b.buddy.id])
+		_say("%s and %s have laid an egg." % [a.fish_name, b.fish_name], "egg")
+
+
+## Where the eggs of an animal are, if it has any waiting to hatch (null if it has none).
+func nest_of(id: int) -> Variant:
+	for egg in _eggs:
+		if id in egg.get("by", []):
+			return egg.node.position
+	return null
+
+
 ## Two well-fed, healthy adults in good water, with room to spare, may lay an egg: now and
 ## then, about once every BREED_EVERY while all of that holds.
 func _try_breeding(dt: float) -> void:
@@ -1059,15 +1116,22 @@ func _try_breeding(dt: float) -> void:
 	b.breed_wait = BREED_WAIT
 	var mid := (a.position + b.position) * 0.5
 	# (a kind bred for colour takes after its parents, a little deeper or paler by chance)
-	_lay(child, mid.x, mid.z, 0.0, clampf((a.buddy.grade + b.buddy.grade) * 0.5 + _rng.randf_range(-0.12, 0.16), 0.0, 1.0))
-	_say("%s and %s have laid an egg." % [a.fish_name, b.fish_name], "egg")
+	var grade := clampf((a.buddy.grade + b.buddy.grade) * 0.5 + _rng.randf_range(-0.12, 0.16), 0.0, 1.0)
+	if _quiet:
+		_lay(child, mid.x, mid.z, 0.0, grade, [a.buddy.id, b.buddy.id])
+		return
+	# with the keeper there to see, they court first: a few seconds of circling each other
+	a.court(b)
+	b.court(a)
+	notice("courted", a, b)
+	_courting.append({"a": a, "b": b, "child": child, "grade": grade, "left": 7.0})
 
 
-func _lay(species: String, x: float, z: float, egg_age: float, grade := 0.35) -> void:
+func _lay(species: String, x: float, z: float, egg_age: float, grade := 0.35, by: Array = []) -> void:
 	var node := _instance(_egg, _mat)
 	node.position = _on_floor(clampf(x, -width * 0.45, width * 0.45), clampf(z, -depth * 0.45, depth * 0.45))
 	_life.add_child(node)
-	_eggs.append({"node": node, "age": egg_age, "species": species, "grade": grade})
+	_eggs.append({"node": node, "age": egg_age, "species": species, "grade": grade, "by": by})
 
 
 ## How brightly the lamp is lit, 0 to 1 (it fades on and off).
@@ -1159,3 +1223,73 @@ func _spawn(data: Dictionary) -> Fish:
 		dex[f.species] = true
 		discovered.emit(f.species)
 	return f
+
+
+# ------------------------------------------------------------------ jars
+
+## Whether this home is a round jar (its walls are a ring, not four panes).
+func is_round() -> bool:
+	return about().get("round", false)
+
+
+## The points of a jar's wall where it meets the floor, going round; `scale` draws it in or out.
+func _jar_ring(scale := 1.0) -> Array:
+	var ring: Array = []
+	for i in 16:
+		var a := TAU * i / 16.0
+		ring.append(Vector3(cos(a) * width * 0.5 * scale, 0.0, sin(a) * depth * 0.5 * scale))
+	return ring
+
+
+## A round slab, from one height to another: a jar's foot, or its lid.
+func _prism(mb: MB, y0: float, y1: float, scale: float, col: Color) -> void:
+	var ring := _jar_ring(scale)
+	for i in ring.size():
+		var a: Vector3 = ring[i]
+		var b: Vector3 = ring[(i + 1) % ring.size()]
+		mb.quad(a + Vector3(0, y0, 0), b + Vector3(0, y0, 0), b + Vector3(0, y1, 0), a + Vector3(0, y1, 0), col, (a + b) * 0.5)
+		mb.tri(Vector3(0, y1, 0), a + Vector3(0, y1, 0), b + Vector3(0, y1, 0), Props.shade(col, 1.15), Vector3.UP)
+		mb.tri(Vector3(0, y0, 0), a + Vector3(0, y0, 0), b + Vector3(0, y0, 0), Props.shade(col, 0.7), Vector3.DOWN)
+
+
+## A jar's foot and its lid, in place of a tank's frame and hood.
+func _jar_frame(frame: MB, trim: Color) -> void:
+	_prism(frame, -0.1, 0.0, 1.04, trim)
+	_prism(frame, height, height + 0.05, 1.03, trim)
+	_prism(frame, height + 0.05, height + 0.2, 0.8, Color(0.13, 0.14, 0.18))
+
+
+## The far side of a jar's water: the back half of its wall, drawn a little inside the glass.
+func _jar_back(far: MB) -> void:
+	var ring := _jar_ring(0.99)
+	var along := 0.0
+	for i in range(8, 16):
+		var a: Vector3 = ring[i]
+		var b: Vector3 = ring[(i + 1) % ring.size()]
+		var run := a.distance_to(b)
+		far.quad(a, b, b + Vector3(0, height, 0), a + Vector3(0, height, 0), Color.WHITE, -(a + b), Vector2(along, 0), Vector2(along + run, 0),
+				Vector2(along + run, height), Vector2(along, height))
+		along += run
+
+
+## A flat round sheet the size of a jar's mouth: the top of its water.
+func _jar_disc() -> ArrayMesh:
+	var mb := MB.new()
+	var ring := _jar_ring(0.98)
+	for i in ring.size():
+		mb.tri(Vector3.ZERO, ring[i], ring[(i + 1) % ring.size()], Color.WHITE, Vector3.UP)
+	return mb.build()
+
+
+## Whether a place on the floor is inside a jar's wall (always, for a tank).
+func _in_jar(x: float, z: float, within := 1.0) -> bool:
+	return not is_round() or pow(x / (width * 0.5), 2.0) + pow(z / (depth * 0.5), 2.0) <= within * within
+
+
+## A box that is inside a jar's round wall, from one that was inside its square.
+func _round_off(box: AABB) -> AABB:
+	if not is_round():
+		return box
+	var middle := box.get_center()
+	var size := Vector3(box.size.x * 0.7, box.size.y, box.size.z * 0.7)
+	return AABB(Vector3(middle.x - size.x * 0.5, box.position.y, middle.z - size.z * 0.5), size)

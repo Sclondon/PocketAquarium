@@ -195,6 +195,29 @@ func _covered_tank() -> void:
 	_cave.mesh = mb.build()
 	_cave.material_override = _mat
 	add_child(_cave)
+	# its glass, and the water in it: dark, still, and only just to be seen
+	var water := MeshInstance3D.new()
+	var block := BoxMesh.new()
+	block.size = Vector3(size.x - 0.03, 0.8, size.z - 0.03)
+	water.mesh = block
+	var wet := StandardMaterial3D.new()
+	wet.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	wet.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	wet.albedo_color = Color(0.12, 0.22, 0.4, 0.16)
+	water.material_override = wet
+	water.position = at + Vector3(0.0, 0.46, 0.0)
+	_cave.add_child(water)
+	var glass := MeshInstance3D.new()
+	var pane := BoxMesh.new()
+	pane.size = size + Vector3(0.0, 0.0, 0.0)
+	glass.mesh = pane
+	var clear := StandardMaterial3D.new()
+	clear.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	clear.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	clear.albedo_color = Color(0.5, 0.65, 1.0, 0.05)
+	glass.material_override = clear
+	glass.position = at + Vector3(0.0, size.y * 0.5, 0.0)
+	_cave.add_child(glass)
 	# the cloth: a box a little bigger than the tank, with a hem that hangs unevenly, and the note
 	var cloth := MB.new()
 	var fabric := Color(0.34, 0.3, 0.42)

@@ -329,7 +329,7 @@ func _decide() -> void:
 	if _plan == "jelly":
 		doing = "wandering"
 		return
-	if _busy > 0.0 and is_instance_valid(_with) and not _with.dead and doing in ["chasing", "fleeing"]:
+	if _busy > 0.0 and is_instance_valid(_with) and not _with.dead and doing in ["chasing", "fleeing", "courting"]:
 		return
 	_with = null
 	var stage := buddy.stage()
@@ -381,6 +381,9 @@ func _decide() -> void:
 ## over, is what makes two of them friends or rivals: see `_meet`.
 func _mind_the_others() -> void:
 	var here := _spot()
+	var nest: Variant = tank.nest_of(buddy.id)
+	if nest != null:
+		here = nest
 	var own_kind := 0
 	var intruder: Node = null
 	var friend: Node = null
@@ -404,11 +407,18 @@ func _mind_the_others() -> void:
 			friend = other
 		if other.position.distance_to(here) < 0.3 + reach() and not buddy.is_friend(other.buddy.id) and other.reach() <= reach() * 1.5:
 			intruder = other
-	if intruder != null and is_adult() and (buddy.temper == "grumpy" or Species.guards(species)) and _rng.randf() < 0.15:
+	if intruder != null and is_adult() and (buddy.temper == "grumpy" or Species.guards(species) or nest != null) \
+			and _rng.randf() < (0.4 if nest != null else 0.15):
 		doing = "chasing"
 		_with = intruder
 		_busy = 2.5
 		intruder.chased_by(self)
+		return
+	if nest != null:
+		if doing != "guarding":
+			tank.notice("guarded its eggs", self)
+			buddy.note("Stood guard over its eggs")
+		doing = "guarding"
 		return
 	if Species.shoals(species):
 		doing = "shoaling" if own_kind >= 2 else "sulking"
@@ -463,6 +473,15 @@ func _meet(other: Node) -> void:
 		tank.notice("fell out", self, other)
 
 
+## It and another are about to lay: they circle each other for a few seconds first.
+func court(other: Node) -> void:
+	doing = "courting"
+	_with = other
+	_busy = 7.5
+	buddy.note("Courted %s" % other.fish_name)
+	buddy.nudge(other.buddy.id, 0.2)
+
+
 ## Another animal is seeing it off.
 func chased_by(other: Node) -> void:
 	if dead or _plan == "jelly":
@@ -480,7 +499,7 @@ func chased_by(other: Node) -> void:
 func _steer(delta: float, box: AABB) -> void:
 	var front: float = box.end.z
 	_pace = 1.0
-	if doing in ["chasing", "fleeing", "keeping company"] and (not is_instance_valid(_with) or _with.dead):
+	if doing in ["chasing", "fleeing", "keeping company", "courting"] and (not is_instance_valid(_with) or _with.dead):
 		doing = "wandering"
 	match doing:
 		"following":
@@ -515,6 +534,15 @@ func _steer(delta: float, box: AABB) -> void:
 			if position.distance_to(_target) < reach() + _with.reach():
 				_busy = 0.0
 				doing = "wandering"
+		"courting":
+			# round and round each other, close
+			var turn := _wag * 0.35 + buddy.id * PI
+			_target = (_with.position + Vector3(cos(turn), 0.25 * sin(turn * 2.0), sin(turn)) * (0.12 + reach())).clamp(box.position, box.end)
+			_pace = 1.5
+		"guarding":
+			var nest: Variant = tank.nest_of(buddy.id)
+			_target = ((nest as Vector3) + Vector3(0.0, 0.12 + reach() * 0.5, 0.0)).clamp(box.position, box.end) if nest != null else position
+			_pace = 0.6
 		"fleeing":
 			_target = (position + (position - _with.position).normalized() * 0.6).clamp(box.position, box.end)
 			_pace = 1.8
@@ -602,6 +630,10 @@ func mood() -> String:
 			return "with %s" % who
 		"shoaling":
 			return "with the shoal"
+		"courting":
+			return "courting %s" % who
+		"guarding":
+			return "guarding its eggs"
 	return "perky" if buddy.stage() != "new" else "wary"
 
 
