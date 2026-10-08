@@ -16,7 +16,7 @@ smoke:   between the animals, 5.6 things a minute watched: { "chase": 319, "made
 smoke: saved 2 tanks, dex 15
 smoke: a brine kit after 40 days: 34 sea monkeys (most 87), 2 eggs, salt 0.71
 smoke: a brine kit never fed, after 20 days: 0 sea monkeys
-smoke: a vivarium misted daily for 30 days: 3 of 3 living, damp 0.70, first death on day 0
-smoke: a vivarium never misted for 30 days: 0 of 3 living, damp 0.00, first death on day 10
+smoke: a vivarium misted daily for 30 days: 2 of 3 living, damp 0.70, first death on day 4
+smoke: a vivarium never misted for 30 days: 0 of 3 living, damp 0.00, first death on day 6
 smoke: an old save came up to version 3: 3 of 3 fish loaded, wallet 40
 smoke: an old save came up to version 3: 4 of 4 fish loaded, wallet none

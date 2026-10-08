@@ -534,6 +534,20 @@ func rebuild() -> void:
 	# what stands on it
 	Props.rock(mb, _on_floor(-hw * 0.62, hd * 0.35), 0.16, rng)
 	Props.rock(mb, _on_floor(hw * 0.55, -hd * 0.5), 0.2, rng)
+	# what a home with land in it is dressed with: branches to climb in the wet ones, and in the
+	# dry one a slab under the lamp to bask on and a pile of stones to get under
+	if about().get("humid", false):
+		var bark := Color(0.36, 0.25, 0.16)
+		Props.box(mb, Vector3(-hw * 0.15, height * 0.36, -hd * 0.55), Vector3(width * 0.8, 0.1, 0.11), bark, rng, 0.012, Basis(Vector3.BACK, 0.42))
+		Props.box(mb, Vector3(hw * 0.3, height * 0.25, -hd * 0.25), Vector3(width * 0.5, 0.08, 0.09), Props.shade(bark, 0.8), rng, 0.012,
+				Basis(Vector3.BACK, -0.5) * Basis(Vector3.UP, 0.4))
+		Props.rock(mb, _on_floor(-hw * 0.2, -hd * 0.2), 0.24, rng)
+	elif not is_wet():
+		var stone := Color(0.62, 0.48, 0.36)
+		Props.box(mb, _on_floor(hw * 0.45, -hd * 0.1) + Vector3(0.0, 0.05, 0.0), Vector3(0.7, 0.1, 0.5), stone, rng, 0.02)
+		Props.rock(mb, _on_floor(-hw * 0.3, -hd * 0.45), 0.3, rng)
+		Props.rock(mb, _on_floor(-hw * 0.05, -hd * 0.55), 0.22, rng)
+		Props.box(mb, _on_floor(-hw * 0.18, -hd * 0.5) + Vector3(0.0, 0.34, 0.0), Vector3(0.75, 0.08, 0.45), Props.shade(stone, 0.85), rng, 0.02)
 	if decor.has("castle"):
 		Props.castle(mb, _on_floor(-hw * 0.38, -hd * 0.35), rng)
 	if decor.has("chest"):

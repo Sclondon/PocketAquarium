@@ -100,7 +100,7 @@ const LIST := {
 		"water_colour": Color(0.4, 0.7, 0.45), "sand": Color(0.5, 0.38, 0.24), "coarse": 0.4, "air": Color(0.06, 0.2, 0.1),
 		"look": {"key": Color(0.75, 1.0, 0.7), "shadow": Color(0.05, 0.2, 0.14), "haze": Color(0.02, 0.09, 0.05),
 			"spill": Color(0.5, 1.0, 0.6), "ink": Color(0.02, 0.05, 0.03)},
-		"warm": 0.65, "humid": true, "starter": [], "plants": 4,
+		"warm": 0.65, "humid": true, "starter": [], "plants": 7,
 	},
 	"arid": {
 		"name": "Arid terrarium", "price": 300, "water": 0.0, "sizes": TANKS,

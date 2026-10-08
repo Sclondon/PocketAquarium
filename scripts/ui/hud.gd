@@ -290,6 +290,8 @@ func _process(_delta: float) -> void:
 		_lamp_lit = tank.lamp_on
 		UiKit.hold(_lamp, _lamp_lit)
 	_water.disabled = not tank.can_change_water()
+	# (a dry terrarium has neither water to change nor air that wants misting)
+	_water.visible = wet or tank.about().get("humid", false)
 	if tank.can_change_water():
 		_water.text = "WATER" if wet else "MIST"
 	elif tank.water_wait > 3600.0:
