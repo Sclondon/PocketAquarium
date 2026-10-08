@@ -15,21 +15,25 @@ def one(colour):
     return lambda *a: colour
 
 
-def fork_tail(kit, z, y, half, reach, fork, colour_at, n=11, rows=3):
+def fork_tail(kit, z, y, half, reach, fork, colour_at, n=11, rows=3, flat=False, thick=0.02):
     """A tail fin at the end of a body: `half` is half its root, `reach` how long, `fork` how
-    deeply it is cut (0 a fan, 1 nearly to the root)."""
+    deeply it is cut (0 a fan, 1 nearly to the root). `flat` lays it on its side: flukes."""
     root, rim = [], []
     for i in range(n):
         u = i / (n - 1)
         a = (0.5 - u) * 2.2
-        root.append((0.0, y + math.sin(a) * half, z))
         r = reach * (1.0 - fork * (1.0 - abs(2.0 * u - 1.0)) ** 1.4)
-        rim.append((0.0, y + math.sin(a) * r * 1.05, z + math.cos(a) * r))
-    kit.fin(root, rim, colour_at, rows=rows, thick=0.02)
+        if flat:
+            root.append((math.sin(a) * half, y, z))
+            rim.append((math.sin(a) * r * 1.05, y, z + math.cos(a) * r))
+        else:
+            root.append((0.0, y + math.sin(a) * half, z))
+            rim.append((0.0, y + math.sin(a) * r * 1.05, z + math.cos(a) * r))
+    kit.fin(root, rim, colour_at, rows=rows, thick=thick)
 
 
 def plain_fish(kit, stations, skin, fin, edge, iris, eye=0.07, eye_at=-0.82, tail=(0.45, 0.6), dorsal=(0.0, 0.4, 0.22),
-               anal=(0.25, 0.6, 0.16), pectoral=0.2, eyes=True, around=16, rows=31):
+               anal=(0.25, 0.6, 0.16), pectoral=0.2, eyes=True, around=16, rows=31, flukes=False, pelvics=True, thick=0.02):
     """An ordinary fish: a body, a forked tail, one dorsal and one anal fin, a pair of pectorals
     and a pair of pelvics, and eyes. `dorsal` and `anal` are (where it starts, where it ends,
     how tall); `tail` is (how long, how forked)."""
@@ -37,7 +41,7 @@ def plain_fish(kit, stations, skin, fin, edge, iris, eye=0.07, eye_at=-0.82, tai
     web = lambda u, v: edge if v > 0.75 else fin
     z1 = stations[-1][0]
     hw, hh, yc = kit.ring(z1)
-    fork_tail(kit, z1 - 0.02, yc, hh * 0.9, tail[0], tail[1], web)
+    fork_tail(kit, z1 - 0.02, yc, (hw if flukes else hh) * 0.9, tail[0], tail[1], web, flat=flukes, thick=thick)
     for which, (a, b, tall) in (("top", dorsal), ("bottom", anal)):
         if tall <= 0.0:
             continue
@@ -51,7 +55,7 @@ def plain_fish(kit, stations, skin, fin, edge, iris, eye=0.07, eye_at=-0.82, tai
             else:
                 root.append((0.0, kit.bottom(z) + 0.02, z))
                 rim.append((0.0, kit.bottom(z) - tall * math.sin(math.pi * (0.2 + 0.7 * u)) ** 0.7, z + 0.1 + 0.08 * u))
-        kit.fin(root, rim, web, rows=3, thick=0.02)
+        kit.fin(root, rim, web, rows=3, thick=thick)
     for sx in (-1.0, 1.0):
         z = eye_at + 0.22
         at = (kit.side(z, sx), kit.ring(z)[2] - kit.ring(z)[1] * 0.2, z)
@@ -59,7 +63,12 @@ def plain_fish(kit, stations, skin, fin, edge, iris, eye=0.07, eye_at=-0.82, tai
         rim = [(at[0] + sx * pectoral * 0.6, at[1] - pectoral * 0.6, at[2] + pectoral * 0.7),
                (at[0] + sx * pectoral * 0.9, at[1] - pectoral * 0.1, at[2] + pectoral),
                (at[0] + sx * pectoral * 0.6, at[1] + pectoral * 0.3, at[2] + pectoral * 0.8)]
-        kit.fin(root, rim, web, rows=2, thick=0.015)
+        kit.fin(root, rim, web, rows=2, thick=thick * 0.75)
+        if not pelvics:
+            if eyes:
+                ehw, ehh, eyc = kit.ring(eye_at)
+                kit.eye((sx * ehw * 0.94, eyc + ehh * 0.25, eye_at), (sx, 0.12, -0.2), eye, iris)
+            continue
         pz = eye_at + 0.6
         root = [(sx * 0.03, kit.bottom(pz) + 0.02, pz - 0.04), (sx * 0.03, kit.bottom(pz) + 0.02, pz + 0.04)]
         rim = [(sx * 0.1, kit.bottom(pz) - 0.14, pz + 0.1), (sx * 0.1, kit.bottom(pz) - 0.1, pz + 0.18)]
