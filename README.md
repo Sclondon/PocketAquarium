@@ -108,6 +108,13 @@ Sea monkeys are not kept one by one. A brine kit holds a colony (`scripts/sim/sw
 eggs hatch a day or two after the kit is set up, the young grow up if they are fed, and the
 grown ones lay. FEED clouds the water for them.
 
+The snail jar and the shrimp jar are round jars; everything else is a glass box. A plant bought
+for fresh water now and then brings bladder snails in with it, which nobody ordered: they
+graze the glass, multiply while there is algae, and are what a pea puffer eats.
+
+A pair about to lay courts first, circling, if the keeper is there to see it; and an animal
+with eggs waiting stands over them and sees the others off.
+
 ## The book
 
 BOOK opens the book: its first half is every kind of animal, filled in as each is kept, and

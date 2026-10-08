@@ -236,6 +236,9 @@ func tick(delta: float, lived: float) -> void:
 ## Its hunger, growth and health over `delta` seconds (which may be many, when catching up
 ## on time away).
 func live(delta: float) -> void:
+	# (a snail on glass with algae on it is a snail that is eating)
+	if _gait == "glide" and tank.algae > 0.03:
+		life.hunger = minf(life.hunger, 0.3)
 	# (an animal of dry land takes no harm from the water it does not live in)
 	var in_water: bool = tank.is_wet() and Species.habit(species, "gait", "swim") in ["swim", "glide", "amphibious"]
 	var died := life.live(delta, tank.o2 if in_water else 1.0, tank.waste if in_water else 0.0, tank.discomfort(species))

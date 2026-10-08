@@ -794,6 +794,12 @@ func remove_fish(f: Fish) -> void:
 
 func add_plant() -> void:
 	plants = mini(plants + 1, MAX_PLANTS)
+	# now and then something comes in on a plant that nobody ordered
+	if is_wet() and float(about().get("salt", 0.0)) == 0.0 and _rng.randf() < 0.3:
+		for i in 2:
+			var pest := _spawn({"species": "pest_snail", "growth": 0.6, "buddy": {"bond": 0.0}})
+			pest.buddy.met = Time.get_unix_time_from_system()
+		_say("Something came in on the plant. Two of something.", "egg", 0.6)
 	rebuild()
 	changed.emit()
 
@@ -862,6 +868,10 @@ func eaten(prey: Fish, by: Fish) -> void:
 
 
 func fish_died(f: Fish) -> void:
+	if Species.habit(f.species, "pest"):
+		# (nobody mourns one of these, or needs to net it out: the others see to it)
+		remove_fish.call_deferred(f)
+		return
 	_died += 1
 	_say("%s the %s has died. Tap to net it out." % [f.fish_name, f.info().name], "sad")
 	if not _quiet:
@@ -963,6 +973,15 @@ func _step_water(dt: float) -> void:
 		water.step(dt, crowd(), bodies, plants, snails, lamp_on, gear.has("pump"), gear.has("filter"))
 	if swarm != null:
 		waste = minf(waste + swarm.step(dt, absf(salt - float(about().get("salt", 0.0)))), 1.0)
+	# uninvited snails eat the algae, and where there is plenty of it there are soon more of them
+	var pests := 0
+	for f in fish:
+		pests += int(not f.dead and f.species == "pest_snail")
+	if pests > 0:
+		algae = maxf(algae - pests * 0.015 * dt / DAY, 0.0)
+		if pests < 12 and algae > 0.12 and _rng.randf() < 1.0 - exp(-dt / DAY * 0.6):
+			_spawn({"species": "pest_snail", "growth": 0.2, "buddy": {"bond": 0.0, "born": true}})
+			_hatched += 1
 	# the air dries, and the salt creeps up as the water dries off
 	if about().get("humid", false):
 		humidity = maxf(humidity - DRIES * dt / DAY, 0.0)
@@ -1095,7 +1114,9 @@ func _try_breeding(dt: float) -> void:
 		grown += float(Species.LIST[egg.species].load)
 	var ready: Array[Fish] = []
 	for f in fish:
-		if not f.dead and f.is_adult() and f.hunger < 0.45 and f.health > 0.8 and f.breed_wait <= 0.0:
+		# (the uninvited snails multiply in their own way: see _step_water)
+		if not f.dead and f.is_adult() and f.hunger < 0.45 and f.health > 0.8 and f.breed_wait <= 0.0 \
+				and not Species.habit(f.species, "pest"):
 			ready.append(f)
 	if ready.size() < 2 or _rng.randf() > 1.0 - exp(-dt / BREED_EVERY):
 		return

@@ -11,7 +11,7 @@ extends RefCounted
 
 ## The order they are listed in, in the shop and the fish-dex.
 const ORDER := ["betta", "kuhli", "glass_catfish", "hatchetfish", "sparkling_gourami",
-		"white_cloud", "hillstream_loach", "cave_tetra", "axolotl", "mystery_snail", "nerite", "cherry_shrimp", "amano_shrimp",
+		"white_cloud", "hillstream_loach", "cave_tetra", "axolotl", "mystery_snail", "nerite", "pest_snail", "cherry_shrimp", "amano_shrimp",
 		"pearl_danio", "scarlet_badis", "pea_puffer", "butterflyfish", "elephantnose", "knifefish", "bichir",
 		"shell_dweller", "bamboo_shrimp", "fire_newt", "milk_frog", "glass_frog", "chameleon", "blue_tongue",
 		"dart_frog", "horned_frog", "crested_gecko", "leopard_gecko", "sandfish", "vampire_crab", "mudskipper",
@@ -205,7 +205,7 @@ const LIST := {
 	},
 	"pea_puffer": {
 		"name": "Pea Puffer", "blurb": "A pea with a tail and opinions. Hunts snails, and will have yours.",
-		"price": 110, "size": 0.5, "load": 0.5, "speed": 0.7, "home": ["fresh"], "habits": {"eats": 1.15, "prey": ["mystery_snail", "nerite"]},
+		"price": 110, "size": 0.5, "load": 0.5, "speed": 0.7, "home": ["fresh"], "habits": {"eats": 2.2, "prey": ["mystery_snail", "nerite", "pest_snail"]},
 		"look": {"back": Color(0.72, 0.72, 0.2), "side": Color(0.72, 0.72, 0.2), "belly": Color(0.98, 0.97, 0.9), "fin": Color(0.12, 0.2, 0.1)},
 	},
 	"butterflyfish": {
@@ -279,6 +279,12 @@ const LIST := {
 		"price": 260, "size": 1.9, "load": 2.5, "speed": 0.35, "home": ["vivarium"], "wants": {"humidity": [0.4, 1.0]},
 		"habits": {"gait": "climb", "stand": 0.0, "legs": [0.16, 0.26]},
 		"look": {"back": Color(0.3, 0.72, 0.25), "side": Color(0.3, 0.72, 0.25), "belly": Color(0.75, 0.9, 0.6), "fin": Color(0.95, 0.85, 0.3)},
+	},
+	"pest_snail": {
+		"name": "Bladder Snail", "blurb": "Nobody buys one. It comes in on a plant, and then there are forty.",
+		"price": 0, "size": 0.26, "load": 0.05, "speed": 0.3, "home": ["fresh", "hard", "stream", "cold", "snail", "shrimp"],
+		"habits": {"gait": "glide", "stand": 0.0, "pest": true},
+		"look": {"back": Color(0.5, 0.36, 0.2), "side": Color(0.5, 0.36, 0.2), "belly": Color(0.5, 0.5, 0.48), "fin": Color(0.9, 0.72, 0.3)},
 	},
 	"glow_guppy": {
 		"name": "Glow Guppy", "blurb": "A guppy that took the tetra's stripe and ran with it.",
@@ -469,6 +475,8 @@ static func hint(id: String) -> String:
 		return "Sold in the shop, for a salt water tank." if water(id) == "sea" else "Sold in the shop."
 	if id == "olm":
 		return "It does not come from a shop."
+	if id == "pest_snail":
+		return "Nobody buys one. They arrive."
 	for key: String in CROSSES:
 		if CROSSES[key] == id:
 			return "A %s might have one, with the right company." % LIST[key.get_slice("+", 0)].name

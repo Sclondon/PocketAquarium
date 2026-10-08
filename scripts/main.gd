@@ -522,6 +522,8 @@ func _look_for_pages() -> void:
 			note("red")
 		if t.swarm != null and t.swarm.count() >= 1.0:
 			note("dust")
+		if t.fish.any(func(f: Node) -> bool: return f.species == "pest_snail"):
+			note("pests")
 		if t.about().get("humid", false) and t.humidity < 0.45:
 			note("damp")
 
