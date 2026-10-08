@@ -229,6 +229,7 @@ func _covered_tank() -> void:
 			mat.set_shader_parameter("modelled", true)
 			mat.set_shader_parameter("swim", 3)
 			mat.set_shader_parameter("wag_amp", 0.2)
+			mat.set_shader_parameter("leg_from", 0.11)
 			mat.set_shader_parameter("lamp", 0.8)
 		_olm_mat.set_shader_parameter("key", Color(0.6, 0.72, 1.0))
 		_olm_mat.set_shader_parameter("shadow", Color(0.2, 0.22, 0.45))

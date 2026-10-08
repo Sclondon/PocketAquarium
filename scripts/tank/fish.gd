@@ -123,6 +123,10 @@ func setup(in_tank, data: Dictionary) -> void:
 	if _gait != "swim":
 		# (one on foot sways as it walks, and one that hops or glides holds itself still)
 		_bend("swim", 3 if _gait in ["walk", "climb"] else 4)
+		# (what counts as leg, for the stepping: see swim.gdshaderinc)
+		var legs: Array = Species.habit(species, "legs", [0.26, 0.0])
+		_bend("leg_from", legs[0])
+		_bend("leg_low", legs[1])
 	_bend("wag_amp", Species.habit(species, "wag", 0.07 if _plan == "squid" else 0.12))
 	_mat.set_shader_parameter("spots", look.get("spots", 0.0))
 	_mat.set_shader_parameter("spot_color", look.get("spot", Color(0.05, 0.08, 0.1)))
@@ -686,8 +690,10 @@ func _roam(delta: float) -> void:
 		var dir := (Vector3(v.x, v.y, 0.0) if wall else Vector3(v.x, 0.0, v.z)).normalized()
 		var turned := _heading.lerp(dir, 1.0 - exp(-5.0 * delta))
 		_heading = turned.normalized() if turned.length() > 0.05 else dir
-	_wag += delta * (2.0 + v.length() * 40.0)
+	_wag += delta * v.length() * 55.0 / maxf(float(info().size), 0.5)
 	_bend("wag_phase", _wag)
+	if _gait == "hop":
+		_bend("leap", sin(PI * _hop))
 	if wall:
 		# flat against the wall, belly to it, head the way it is going
 		basis = Basis.looking_at(_heading if _heading.length() > 0.1 else Vector3.UP, Vector3.BACK).scaled(Vector3.ONE * _size())
